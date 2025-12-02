@@ -9,6 +9,7 @@ Rules:
 - Each step id must be in the following format: "step1", "step2", etc.
 - For input values, if they use outputs from previous steps, reference them appropriately with step IDs (e.g., "step1.output").
 - As actions, use only the provided tool names.
+- For each step, include your thoughts explaining the reasoning behind the step.
 
 Be precise, unambiguous, and do NOT include explanations.
 """
