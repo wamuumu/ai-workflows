@@ -2,7 +2,7 @@ import json
 
 from agents.gemini import GeminiAgent
 from workflows.models.linear import LinearWorkflow
-from workflows.executor import WorkflowRunner
+from workflows.runner import WorkflowRunner
 from tools.macro import MACRO_TOOLS
 from utils.constants import SYSTEM_PROMPT, USER_PROMPT
 
