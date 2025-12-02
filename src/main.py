@@ -1,6 +1,6 @@
 import json
 
-from agents.gemini import GeminiAgent
+from agents.google import GeminiAgent
 from workflows.models.linear import LinearWorkflow
 from workflows.runner import WorkflowRunner
 from tools.macro import MACRO_TOOLS
