@@ -2,7 +2,7 @@ import json
 
 from agents.google import GeminiAgent
 from workflows.models.linear import LinearWorkflow
-from workflows.runner import WorkflowRunner
+from workflows.core import WorkflowManager
 from tools.macro import MACRO_TOOLS
 from utils.constants import LINEAR_SYSTEM_PROMPT, USER_PROMPT
 
@@ -12,8 +12,9 @@ workflow = agent.generate(LINEAR_SYSTEM_PROMPT, USER_PROMPT, response_model=Line
 print("\nGenerated Workflow:")
 print(json.dumps(workflow.model_dump(), indent=2))
 
-runner = WorkflowRunner(tools=MACRO_TOOLS)
-outputs = runner.execute(workflow)
+manager = WorkflowManager(tools=MACRO_TOOLS)
+manager.generate_html(workflow)
+outputs = manager.execute(workflow, debug=True)
 
 print("\nWorkflow Outputs:")
 print(json.dumps(outputs, indent=2))
