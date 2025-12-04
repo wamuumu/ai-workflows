@@ -7,16 +7,19 @@ class BaseTool(ABC):
     name: str
     description: str
     parameters: Optional[Dict[str, Any]] = None
+    results: Dict[str, Any] = {}
 
-    def __init__(self, name: str, description: str, parameters: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, description: str, parameters: Optional[Dict[str, Any]] = None, results: Optional[Dict[str, Any]] = None):
         self.name = name
         self.description = description
         self.parameters = parameters
+        self.results = results if results is not None else {}
     
     def __repr__(self):
         formatted = f"{self.name}: {self.description}\n"
         if self.parameters:
             formatted += f" | Input: {self.parameters}\n"
+        formatted += f" | Output: {self.results}\n"
         return formatted
     
     @abstractmethod

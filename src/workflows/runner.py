@@ -22,25 +22,28 @@ class WorkflowRunner:
         # - LLM is called only when action is "call_llm"
 
         for step in workflow_json["steps"]:
-            action = step["action"]
+            step_id = step["id"]
+            task = step["task"]
+            action = task["action"]
 
             if action == "call_llm":
                 raise NotImplementedError("LLM call action is not implemented in this runner.")
             elif action == "call_tool":
-                tool_name = step.get("tool_name")
+                tool_name = task.get("tool_name")
                 tool = next((t for t in self.tools if t.name == tool_name), None)
 
                 if not tool:
                     raise ValueError(f"Tool {tool_name} not found among available tools.")
                 
-                # TODO: Resolve inputs that reference previous step outputs
+                # TODO: Handle inputs that reference previous step outputs
                 inputs = {}
-                for param in step["params"]:
+                params = step.get("parameters", []) 
+                for param in params:
                     inputs[param["key"]] = param["value"]
 
                 results = tool.run(**inputs)
-                self.step_outputs[step["id"]] = results
+                self.step_outputs[step_id] = results
             else:
-                raise ValueError(f"Unknown action {action} in step {step['id']}.")
+                raise ValueError(f"Unknown action {action} in step {step_id}.")
         
         return self.step_outputs

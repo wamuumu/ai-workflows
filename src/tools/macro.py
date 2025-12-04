@@ -10,8 +10,15 @@ class ExtractGitHubProfile(BaseTool):
             description="Extract GitHub profile information from a username.", 
             parameters={
                 "username": {
-                    "type": "string",
+                    "type": str.__name__,
+                    "description": "The GitHub username to extract profile information for.",
                     "required": True
+                }
+            },
+            results={
+                "profile": {
+                    "type": dict.__name__,
+                    "description": "The GitHub user's profile information."
                 }
             }
         )
@@ -33,8 +40,15 @@ class ExtractGitHubRepo(BaseTool):
             description="Extract all GitHub repositories information from a username.",
             parameters={
                 "username": {
-                    "type": "string",
+                    "type": str.__name__,
+                    "description": "The GitHub username to extract repository information for.",
                     "required": True
+                }
+            },
+            results={
+                "repositories": {
+                    "type": list.__name__,
+                    "description": "The list of GitHub repositories for the user."
                 }
             }
         )
