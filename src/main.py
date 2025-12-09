@@ -15,10 +15,11 @@ chat_prompt_with_tools = f"{CHAT_SYSTEM_PROMPT}\n{ToolRegistry.to_prompt_format(
 user_prompt = USER_PROMPTS[0]
 
 # Generate the workflow (one-shot)
-# workflow = agent.generate(system_prompt_with_tools, user_prompt, response_model=LinearWorkflow, debug=True)
+# workflow = agent.generate_workflow(system_prompt_with_tools, user_prompt, response_model=LinearWorkflow, debug=True)
 
 # Generate the workflow (chat-based with clarification)
-workflow = agent.chat(SYSTEM_PROMPT, chat_prompt_with_tools, user_prompt, response_model=LinearWorkflow, debug=True)
+chat_session = agent.chat(chat_prompt_with_tools, user_prompt, debug=True)
+workflow = agent.generate_workflow_from_chat(chat_session, SYSTEM_PROMPT, response_model=LinearWorkflow, debug=True)
 
 print("\nGenerated Workflow:")
 print(json.dumps(workflow.model_dump(), indent=2))

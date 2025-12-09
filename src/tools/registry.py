@@ -98,7 +98,8 @@ class Tool:
         
         # Final formatted block
         return (
-            f"Tool: {self.name}\n"
+            f"[Tool]\n"
+            f" |- Name: {self.name}\n"
             f" |- Category: {self.category}\n"
             f" |- Description: {self.description}\n"
             f" |- Parameters:\n\t{params_str}\n"

@@ -16,8 +16,8 @@ class GeminiAgent:
         self.client = Client()
         self.model_name = model_name
     
-    def generate(self, system_prompt: str, user_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
-        """Generate content using the Gemini model with structured response."""
+    def generate_workflow(self, system_prompt: str, user_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
+        """Generate a workflow in one-shot."""
 
         if debug:
             print("System Prompt:", system_prompt)
@@ -28,11 +28,10 @@ class GeminiAgent:
 
         return self._get_workflow(system_prompt, user_prompt, response_model)
 
-    def chat(self, system_prompt: str, chat_prompt: str, user_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
+    def chat(self, system_prompt: str, user_prompt: str, debug: bool = False):
         """Engage in a chat using the Gemini model with structured response."""
 
         if debug:
-            print("Chat Prompt:", chat_prompt)
             print("System Prompt:", system_prompt)
             print("User Prompt:", user_prompt)
             exit = input("Continue? (y/n): ")
@@ -43,7 +42,7 @@ class GeminiAgent:
         chat_session = self.client.chats.create(
             model=self.model_name,
             config=types.GenerateContentConfig(
-                system_instruction=chat_prompt
+                system_instruction=system_prompt
             )
         )
 
@@ -56,25 +55,30 @@ class GeminiAgent:
         
         # Iterative workflow refinement with questions and answers
         while True:
-            user_input = input("Your message (type 'exit' to quit): ")
-            
+            user_input = input("Your message (type 'exit'): ")
             if user_input.lower() == 'exit':
                 break
 
             response = chat_session.send_message(user_input)
-            print("Response:", response.text)
+            print(f"Response: {response.text}\n")
         
-        # Final structured response
-        history_summary_prompt = "Based on the conversation we just had, please generate the required structured JSON. The conversation was:\n\n---\n"
+        return chat_session
+    
+    def generate_workflow_from_chat(self, chat_session, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
+        """Generate a workflow from the chat history."""
         
-        # Flatten the history into a string
+        if debug:
+            print("System Prompt for final generation:", system_prompt)
+            exit = input("Continue? (y/n): ")
+            if exit.lower() != 'y':
+                raise KeyboardInterrupt("Execution stopped by user.")
+
+        # Compile chat history into a single prompt
         history_text = "\n".join(
             f"{m.role.capitalize()}: {m.parts[0].text}" 
             for m in chat_session.get_history()
         )
-        
-        # Combine the history with the instruction to structure the output
-        final_prompt = history_summary_prompt + history_text + "\n\n---"
+        final_prompt = f"Based on the conversation we just had, please generate the required JSON workflow. The conversation was:\n\n---\n{history_text}\n\n---"
 
         return self._get_workflow(system_prompt, final_prompt, response_model)
     
