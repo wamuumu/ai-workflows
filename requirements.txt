@@ -7,3 +7,4 @@ translate==3.8.0
 textblob==0.19.0
 yfinance==0.2.66
 feedparser==6.0.12
+scikit-learn==1.7.2

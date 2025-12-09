@@ -7,7 +7,7 @@ from utils.constants import LINEAR_SYSTEM_PROMPT, USER_PROMPT
 from tools.registry import ToolRegistry
 
 print(ToolRegistry.list_tools())
-print(ToolRegistry.get("calculator").run(expression="2 + 2 * 2"))
+print(ToolRegistry.get("get_indoor_activities").run(city="Milano", limit=5))
 exit(0)
 
 agent = GeminiAgent(tools=MACRO_TOOLS)
