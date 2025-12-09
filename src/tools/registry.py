@@ -175,7 +175,7 @@ class ToolRegistry:
         """Generate a formatted string representation of all tools for LLM prompts."""
         cls.__ensure_initialized()
         
-        output = "Available Tools:\n\n"
+        output = "\nAvailable Tools:\n\n"
         output += f"Total tools: {len(cls._tools)}\n"
         output += f"Categories: {', '.join(cls.get_categories())}\n\n"
         

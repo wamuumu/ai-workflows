@@ -12,8 +12,21 @@ Rules:
 - If a step action is "call_llm", then the parameter key MUST be "prompt".
 - Each step utilizing previous steps outputs as input parameters MUST reference the correct step ids and result keys (e.g., {step_1.result_key} for step2).
 - For step MUST include the thoughts explaining the reasoning behind the step.
-- Be precise, unambiguous, and do NOT include additional explanations.
+- Be precise, unambiguous, and do NOT include additional explanations."""
+
+CHAT_SYSTEM_PROMPT = """
+You are an expert workflow-definition agent. 
+    
+Your task:
+Given a user request, answer back with your initial thoughts on how to approach the request, and then start asking clarification questions in order to better understand the user's needs.
+
+Rules:
+- Each question MUST be clear and concise.
+- Each question MUST be relevant to the user's request.
+- DO NOT ask all the questions at once. Instead, wait for the user's response before asking the next question.
+- DO NOT generate the final workflow: when you have enough information, inform the user to leave the chat. 
 """
+
 
 USER_PROMPTS = [
     "Check the weather in London for the next 3 days. If any day has rain, find indoor activities and save them to rainy_activities.txt. If all days are sunny, search for outdoor parks and save to sunny_activities.txt. Also send me an email summarizing the plan.",
