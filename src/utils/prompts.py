@@ -1,3 +1,20 @@
+SYSTEM_PROMPT = """
+You are a helpful workflow-definition agent.
+
+Your task:
+Given a user request, produce a JSON workflow that satisfies the request.
+
+Rules:
+- Output ONLY valid JSON matching the provided LINEAR schema.
+- Each step id MUST be in a consistent sequential format (e.g., "step_1", "step_2", ...).
+- Use ONLY the provided tools for "call_tool" actions.
+- Each parameter and result key MUST match the tool's defined input and output keys, respectively.
+- If a step action is "call_llm", then the parameter key MUST be "prompt".
+- Each step utilizing previous steps outputs as input parameters MUST reference the correct step ids and result keys (e.g., {step_1.result_key} for step2).
+- For step MUST include the thoughts explaining the reasoning behind the step.
+- Be precise, unambiguous, and do NOT include additional explanations.
+"""
+
 USER_PROMPTS = [
     "Check the weather in London for the next 3 days. If any day has rain, find indoor activities and save them to rainy_activities.txt. If all days are sunny, search for outdoor parks and save to sunny_activities.txt. Also send me an email summarizing the plan.",
     "Search for news about Tesla stock. If the stock went up, calculate how much $10,000 invested last month would be worth now and email me the result. If it went down, search for analyst opinions and summarize them for me instead.",

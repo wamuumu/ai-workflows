@@ -3,18 +3,22 @@ import json
 from agents.google import GeminiAgent
 from workflows.models.linear import LinearWorkflow
 # from workflows.core import WorkflowManager
-from utils.constants import LINEAR_SYSTEM_PROMPT, USER_PROMPT
+from utils.prompts import SYSTEM_PROMPT, USER_PROMPTS
 from tools.registry import ToolRegistry
 
-print(ToolRegistry.list_tools())
-print(ToolRegistry.get("get_indoor_activities").run(city="Milano", limit=5))
-exit(0)
+# Initialize Gemini Agent
+agent = GeminiAgent()
 
-agent = GeminiAgent(tools=MACRO_TOOLS)
-workflow = agent.generate(LINEAR_SYSTEM_PROMPT, USER_PROMPT, response_model=LinearWorkflow, debug=True)
+# Set up the prompts
+system_prompt_with_tools = f"{SYSTEM_PROMPT}\n{ToolRegistry.to_prompt_format()}\n"
+user_prompt = USER_PROMPTS[0]
+
+# Generate the workflow
+workflow = agent.generate(system_prompt_with_tools, user_prompt, response_model=LinearWorkflow, debug=True)
 
 print("\nGenerated Workflow:")
 print(json.dumps(workflow.model_dump(), indent=2))
+exit(0)
 
 manager = WorkflowManager(tools=MACRO_TOOLS)
 manager.generate_html(workflow)

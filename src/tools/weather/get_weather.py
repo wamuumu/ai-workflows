@@ -36,10 +36,10 @@ WEATHER_CODE_LABELS = {
 
 @tool(
     name="current_weather", 
-    description="Get the current weather for a specified location.",    
+    description="Get the current weather for a specified location for a certain amount of days.",    
     category="weather"
 )
-def get_weather(location: str) -> dict: 
+def get_weather(location: str, forecast_days: int = 7) -> dict: 
     try:
         geolocator = Nominatim(user_agent="ai-workflows")
         location = geolocator.geocode(location)
@@ -47,7 +47,7 @@ def get_weather(location: str) -> dict:
         lat = location.latitude
         lon = location.longitude
 
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto"
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&forecast_days={forecast_days}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto"
         weather_response = requests.get(weather_url, timeout=5)
         weather_response.raise_for_status()
         weather_data = weather_response.json()
