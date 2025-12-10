@@ -5,7 +5,7 @@ Your task:
 Given a user request, produce a JSON workflow that satisfies the request.
 
 Rules:
-- Output ONLY valid JSON matching the provided LINEAR schema.
+- Output ONLY valid JSON matching the provided response schema.
 - Each step id MUST be in a consistent sequential format (e.g., "step_1", "step_2", ...).
 - Use ONLY the provided tools for "call_tool" actions.
 - Each parameter and result key MUST match the tool's defined input and output keys, respectively.
