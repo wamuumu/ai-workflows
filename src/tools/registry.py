@@ -1,4 +1,3 @@
-import pkgutil
 import importlib
 import pathlib
 import inspect

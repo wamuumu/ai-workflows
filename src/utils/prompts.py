@@ -30,8 +30,7 @@ Rules:
 - Each question MUST NOT be repetitive of previous questions.
 - DO NOT ask all the questions at once at the beginning!
 - WAIT for the user's response before asking the next question.
-- DO NOT generate the final workflow: when you have enough information, inform the user to leave the chat. 
-"""
+- DO NOT generate the final workflow: when you have enough information, inform the user to leave the chat."""
 
 
 USER_PROMPTS = [
