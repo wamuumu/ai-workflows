@@ -26,6 +26,6 @@ class LLMAction(BaseModel):
 class StepResponse(BaseModel):
     """A response for a single step in a structured workflow."""
     step_id: str
-    type: Union[ToolAction, LLMAction]
+    type: Union[ToolAction, LLMAction, Literal["finished"]]
     results: Optional[dict] = None
     human_input: Optional[str] = None

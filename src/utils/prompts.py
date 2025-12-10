@@ -32,6 +32,24 @@ Rules:
 - WAIT for the user's response before asking the next question.
 - DO NOT generate the final workflow: when you have enough information, inform the user to leave the chat."""
 
+EXECUTOR_SYSTEM_PROMPT = """
+You are a workflow-executor assistant. You will receive:
+- A JSON workflow with "steps" array.
+- A "state" object that maps previously produced step results as state["step_1"]["weather_data"], etc.
+
+Your task:
+Execute the workflow step-by-step according to the provided steps and current state.
+
+Rules:
+- Output ONLY valid JSON matching the provided response schema.
+- Process steps starting from "step_1".
+- You MUST replace any {step_X.key} placeholders in parameters with correct values from `state`.
+- For a step whose task action is "call_llm", USE the prompt provided to generate the result (DO NOT call any external tool).
+- For a step whose task action is "call_tool", DO NOT execute the operation yourself. Instead, ask for the results providing the parameters to the caller according to the schema.
+    1. After the tool call, you will be provided with the new "state" object including the new tool results.
+    2. You MUST then continue to the next step using the updated state.
+- When the workflow is complete, output the response with type "finished"."""
+
 
 USER_PROMPTS = [
     "Check the weather in London for the next 3 days. If any day has rain, find indoor activities and save them to rainy_activities.txt. If all days are sunny, search for outdoor parks and save to sunny_activities.txt. Also send me an email summarizing the plan.",
