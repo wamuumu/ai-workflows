@@ -21,11 +21,6 @@ class LLMAction(BaseModel):
     """An action to call a LLM."""
     action: Literal["call_llm"]
 
-class HumanAction(BaseModel):
-    """An action to involve a human."""
-    action: Literal["human_input"]
-    instructions: str
-
 class GlobalTransitions(BaseModel):
     rerun: Literal["default_rerun_logic"]
     human_needed: Literal["default_human_logic"]
@@ -41,7 +36,7 @@ class Step(BaseModel):
     id: str
     title: str
     description: str
-    task: Union[ToolAction, LLMAction, HumanAction]
+    task: Union[ToolAction, LLMAction]
     parameters: Optional[List[Parameter]] = None
     results: List[Result]
     transitions: StepTransitions # ? Should we implement complex conditional logic
