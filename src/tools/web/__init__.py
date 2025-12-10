@@ -1,13 +1,8 @@
+import requests
+
+from bs4 import BeautifulSoup
 from ddgs import DDGS
 from tools.decorator import tool
-
-@tool(
-    name="scrape_web",
-    description="Scrape content from a given URL.",
-    category="web",
-)
-def scrape_web(url: str) -> str:
-    pass
 
 @tool(
     name="search_web",
@@ -24,3 +19,20 @@ def search_web(query: str, num_results: int = 5) -> dict:
         }
     except Exception as e:
         return {"error": str(e)}
+    
+@tool(
+    name="scrape_web",
+    description="Scrape content from a given URL.",
+    category="web",
+)
+def scrape_web(url: str) -> str:
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        for tag in soup(['script', 'style', 'noscript']):
+            tag.extract()
+        text = soup.get_text(separator=' ')
+        return " ".join(text.split())
+    except requests.RequestException as e:
+        return f"Error fetching URL {url}: {str(e)}"
