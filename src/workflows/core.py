@@ -2,19 +2,20 @@ import os
 import html
 
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import Dict
 from pyvis.network import Network
 from datetime import datetime
-from tools.base import BaseTool
+from tools.registry import Tool
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 class WorkflowManager:
     """ Manager to handle workflow execution and visualization."""
 
-    def __init__(self, tools: List[BaseTool] = []):
-        self.tools = [tool() for tool in tools]
+    def __init__(self, tools: Dict[str, Tool] = {}):
+        self.tools = tools
     
+    '''
     def execute(self, workflow: BaseModel, debug: bool = False) -> Dict[str, Any]:
         """Execute the workflow step by step."""
         step_outputs = {}
@@ -56,7 +57,8 @@ class WorkflowManager:
                 print(f"Step {step_id} executed. Outputs: {step_outputs[step_id]}")
         
         return step_outputs
-
+    '''
+    
     def generate_html(self, workflow: BaseModel):
         """Create a visual representation of the workflow using pyvis."""
         

@@ -124,8 +124,7 @@ class ToolRegistry:
         package_dir = pathlib.Path(__file__).parent
         for tools_dir in package_dir.iterdir():
             if tools_dir.is_dir() and (tools_dir / "__init__.py").exists():
-                for module in pkgutil.iter_modules([str(tools_dir)], prefix=f"tools.{tools_dir.name}."):
-                    importlib.import_module(module.name)
+                importlib.import_module(f"tools.{tools_dir.name}")
 
     @classmethod
     def register(cls, tool: Tool):
