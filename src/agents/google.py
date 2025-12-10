@@ -75,8 +75,7 @@ class GeminiAgent:
 
         # Compile chat history into a single prompt
         history_text = "\n".join(
-            f"{m.role.capitalize()}: {m.parts[0].text}" 
-            for m in chat_session.get_history()
+            f"{msg.role.capitalize()}: {msg.parts[0].text}" for msg in chat_session.get_history()
         )
         final_prompt = f"Based on the conversation we just had, please generate the required JSON workflow. The conversation was:\n\n---\n{history_text}\n\n---"
 
