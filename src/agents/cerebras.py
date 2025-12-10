@@ -4,15 +4,23 @@ import json
 
 from cerebras.cloud.sdk import Cerebras
 from pydantic import BaseModel
+from enum import Enum
 from dotenv import load_dotenv
 
+# Load API key from environment or prompt user
 load_dotenv()
 
 if "CEREBRAS_API_KEY" not in os.environ:
     os.environ["CEREBRAS_API_KEY"] = getpass.getpass("Enter your Cerebras API key: ")
 
+class CerebrasModel(str, Enum):
+    GPT_OSS = "gpt-oss-120b"
+    LLAMA_3_3 = "llama-3.3-70b"
+    LLAMA_3_1 = "llama3.1-8b"
+    QWEN_3 = "qwen-3-32b"
+
 class CerebrasAgent:
-    def __init__(self, model_name: str = "gpt-oss-120b"):
+    def __init__(self, model_name: str = CerebrasModel.GPT_OSS):
         self.client = Cerebras()
         self.model_name = model_name
     
@@ -26,7 +34,7 @@ class CerebrasAgent:
             if exit.lower() != 'y':
                 raise KeyboardInterrupt("Execution stopped by user.")
         
-        return self._get_workflow(system_prompt, user_prompt, response_model)
+        return self._call_llm_structured(system_prompt, user_prompt, response_model)
 
     def chat(self, system_prompt: str, user_prompt: str, debug: bool = False):
         """Chat using the Cerebras model with multi-turn conversation."""
@@ -42,17 +50,12 @@ class CerebrasAgent:
         # Keep the full conversation history
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": f"Workflow prompt is '{user_prompt}'"}
+            {"role": "user", "content": f"Workflow prompt is '{user_prompt}'"}
         ]
 
         # Send initial user message
         try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                stream=False
-            )
-            initial_text = response.choices[0].message.content
+            initial_text = self._call_llm(messages)
             print("Initial reasoning:", initial_text, "\n")
         except Exception as e:
             raise RuntimeError(f"Chat message failed: {e}")
@@ -65,20 +68,12 @@ class CerebrasAgent:
 
             # Append user message
             messages.append({"role": "user", "content": user_input})
-
-            # Send to model
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                stream=False
-            )
-
-            model_reply = response.choices[0].message.content
-            print("Response:", model_reply, "\n")
+            response = self._call_llm(messages)
+            print("Response:", response, "\n")
 
             # Append model response to conversation history
-            messages.append({"role": "assistant", "content": model_reply})
-
+            messages.append({"role": "assistant", "content": response})
+        
         return messages
     
     def generate_workflow_from_chat(self, messages: list, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
@@ -96,11 +91,24 @@ class CerebrasAgent:
         )
         final_prompt = f"{system_prompt}\n\nChat History:\n{history_text}\n\nPlease provide the final workflow."
 
-        return self._get_workflow(system_prompt, final_prompt, response_model)
+        return self._call_llm_structured(system_prompt, final_prompt, response_model)
         
-    
-    def _get_workflow(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
-        """Private method to get the structured response (i.e, workflow schema) from the model."""
+    def execute_workflow(self, system_prompt: str, workflow: BaseModel):
+        raise NotImplementedError("Workflow execution is not implemented yet.")
+
+    def _call_llm(self, messages: list) -> str:
+        """Private method to call the LLM and get a text response."""
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            stream=False
+        )
+
+        return response.choices[0].message.content
+
+    def _call_llm_structured(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
+        """Private method to get the structured response from the model."""
         
         messages = [
             {"role": "system", "content": system_prompt},
@@ -123,10 +131,8 @@ class CerebrasAgent:
         json_data = json.dumps(json.loads(response.choices[0].message.content))
 
         try:
-            workflow = response_model.model_validate_json(json_data)
+            return response_model.model_validate_json(json_data)
         except Exception as e:
             raise ValueError(f"Failed to parse response into {response_model.__name__}: {e}")
-
-        return workflow
 
         

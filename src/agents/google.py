@@ -3,6 +3,7 @@ import getpass
 
 from google.genai import Client, types
 from pydantic import BaseModel
+from enum import Enum
 from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
@@ -11,8 +12,13 @@ load_dotenv()
 if "GOOGLE_API_KEY" not in os.environ:
     os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
 
+class GeminiModel(str, Enum):
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GEMINI_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
+    GEMINI_2_0_FLASH = "gemini-2.0-flash"
+
 class GeminiAgent:
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = GeminiModel.GEMINI_2_5_FLASH):
         self.client = Client()
         self.model_name = model_name
     
@@ -26,7 +32,7 @@ class GeminiAgent:
             if exit.lower() != 'y':
                 raise KeyboardInterrupt("Execution stopped by user.")
 
-        return self._get_workflow(system_prompt, user_prompt, response_model)
+        return self._call_llm_structured(system_prompt, user_prompt, response_model)
 
     def chat(self, system_prompt: str, user_prompt: str, debug: bool = False):
         """Engage in a chat using the Gemini model with structured response."""
@@ -48,8 +54,8 @@ class GeminiAgent:
 
         # Send user prompt and get initial reasoning
         try:
-            response = chat_session.send_message(f"Workflow prompt is '{user_prompt}'")
-            print("Initial reasoning:", response.text)
+            initial_text = chat_session.send_message(f"Workflow prompt is '{user_prompt}'").text
+            print("Initial reasoning:", initial_text, "\n")
         except Exception as e:
             raise RuntimeError(f"Chat message failed: {e}")
         
@@ -59,12 +65,13 @@ class GeminiAgent:
             if user_input.lower() == 'exit':
                 break
 
-            response = chat_session.send_message(user_input)
-            print(f"Response: {response.text}\n")
+            response = chat_session.send_message(user_input).text
+            print(f"Response: {response}\n")
         
-        return chat_session
+        messages = chat_session.get_history()
+        return messages
     
-    def generate_workflow_from_chat(self, chat_session, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
+    def generate_workflow_from_chat(self, messages, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
         """Generate a workflow from the chat history."""
         
         if debug:
@@ -75,14 +82,18 @@ class GeminiAgent:
 
         # Compile chat history into a single prompt
         history_text = "\n".join(
-            f"{msg.role.capitalize()}: {msg.parts[0].text}" for msg in chat_session.get_history()
+            f"{msg.role.capitalize()}: {msg.parts[0].text}" for msg in messages
         )
         final_prompt = f"Based on the conversation we just had, please generate the required JSON workflow. The conversation was:\n\n---\n{history_text}\n\n---"
 
-        return self._get_workflow(system_prompt, final_prompt, response_model)
-    
-    def _get_workflow(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
-        """Private method to get the structured response (i.e, workflow schema) from the model."""
+        return self._call_llm_structured(system_prompt, final_prompt, response_model)
+
+    def execute_workflow(self, system_prompt: str, workflow: BaseModel):
+        raise NotImplementedError("Workflow execution is not implemented yet.")
+
+    def _call_llm_structured(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
+        """Private method to get the structured response from the model."""
+        
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=user_prompt,
@@ -94,8 +105,6 @@ class GeminiAgent:
         )
 
         try:
-            workflow = response_model.model_validate_json(response.text)
+            return response_model.model_validate_json(response.text)
         except Exception as e:
             raise ValueError(f"Failed to parse response into {response_model.__name__}: {e}")
-
-        return workflow
