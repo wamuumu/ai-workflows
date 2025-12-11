@@ -1,9 +1,11 @@
 import os
 import getpass
+import json
 
 from google.genai import Client, types
 from pydantic import BaseModel
 from enum import Enum
+from tools.registry import ToolRegistry
 from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
@@ -28,9 +30,7 @@ class GeminiAgent:
         if debug:
             print("System Prompt:", system_prompt)
             print("User Prompt:", user_prompt)
-            exit = input("Continue? (y/n): ")
-            if exit.lower() != 'y':
-                raise KeyboardInterrupt("Execution stopped by user.")
+            input("Press Enter to continue or Ctrl+C to exit...")
 
         return self._call_llm_structured(system_prompt, user_prompt, response_model)
 
@@ -40,9 +40,7 @@ class GeminiAgent:
         if debug:
             print("System Prompt:", system_prompt)
             print("User Prompt:", user_prompt)
-            exit = input("Continue? (y/n): ")
-            if exit.lower() != 'y':
-                raise KeyboardInterrupt("Execution stopped by user.")
+            input("Press Enter to continue or Ctrl+C to exit...")
 
         # Instantiate a chat session with system prompt    
         chat_session = self.client.chats.create(
@@ -73,12 +71,6 @@ class GeminiAgent:
     
     def generate_workflow_from_chat(self, messages, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
         """Generate a workflow from the chat history."""
-        
-        if debug:
-            print("System Prompt for final generation:", system_prompt)
-            exit = input("Continue? (y/n): ")
-            if exit.lower() != 'y':
-                raise KeyboardInterrupt("Execution stopped by user.")
 
         # Compile chat history into a single prompt
         history_text = "\n".join(
@@ -86,10 +78,98 @@ class GeminiAgent:
         )
         final_prompt = f"Based on the conversation we just had, please generate the required JSON workflow. The conversation was:\n\n---\n{history_text}\n\n---"
 
+        if debug:
+            print("System Prompt for final generation:", system_prompt)
+            print("Final Prompt for workflow generation:", final_prompt)
+            input("Press Enter to continue or Ctrl+C to exit...")
+
         return self._call_llm_structured(system_prompt, final_prompt, response_model)
 
-    def execute_workflow(self, system_prompt: str, workflow: BaseModel):
-        raise NotImplementedError("Workflow execution is not implemented yet.")
+    def execute_workflow(self, system_prompt: str, workflow: BaseModel, response_model: BaseModel, debug : bool = False):
+        """Execute the generated workflow."""
+
+        step_results = {}
+        workflow_text = workflow.model_dump_json()
+
+        if debug:
+            print("System Prompt for execution:", system_prompt)
+            print("Workflow to execute:", workflow_text)
+            input("Press Enter to continue or Ctrl+C to exit...")
+        
+        chat_session = self.client.chats.create(
+            model=self.model_name,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type='application/json',
+                response_schema=response_model
+            )
+        )
+
+        next_message = f"Workflow to execute: \n\n{workflow_text}"
+
+        while True:
+
+            try:
+                response = chat_session.send_message(next_message).text
+            except Exception as e:
+                raise RuntimeError(f"Chat message failed during workflow execution: {e}")
+
+            try:
+                response_json = json.loads(response)
+                response_obj = response_model.model_validate(response_json)
+                payload = response_obj.model_dump()
+            except Exception as e:
+                raise ValueError(f"Failed to parse step response: {e}")
+            
+            if debug:
+                print("Executor received payload:", json.dumps(payload, indent=2))
+                input("Press Enter to continue...")
+            
+            pstep = payload.get("step_id")
+            ptype = payload.get("type")
+            pfinished = payload.get("finished", False)
+            paction = ptype.get("action")
+
+            if pfinished:
+                print("\nFinal response from workflow execution:")
+                print(json.dumps(payload, indent=2))
+                break
+
+            elif paction == "call_tool":
+                tool_name = ptype.get("tool_name")
+                parameters = {p["key"]: p["value"] for p in ptype.get("parameters", [])}
+
+                print(f"\nExecutor requests tool call for {pstep}: {tool_name} with {parameters}")
+                
+                tool = ToolRegistry.get(tool_name)
+                
+                try:
+                    results = tool.run(**parameters)
+                except Exception as e:
+                    raise RuntimeError(f"Tool {tool_name} execution failed: {e}")
+                
+                step_results[pstep] = results
+                next_message = json.dumps({"tool_result": results, "state": step_results, "resume": True})
+                if debug:
+                    print(f"Tool {tool_name} returned results: {results}")
+                    input("Press Enter to continue...")
+                continue
+
+            elif paction == "call_llm":
+                results = ptype.get("results")
+
+                print(f"\nExecutor received LLM action for {pstep} with results: {results}")
+
+                step_results[pstep] = results
+                next_message = json.dumps({"state": step_results, "resume": True})
+                if debug:
+                    input("Press Enter to continue...")
+                continue
+            else:
+                raise ValueError(f"Unknown step action: {paction}")
+        
+        print("Workflow execution completed.")
+            
 
     def _call_llm_structured(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
         """Private method to get the structured response from the model."""
