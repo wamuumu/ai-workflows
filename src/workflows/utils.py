@@ -42,8 +42,8 @@ class WorkflowUtils:
         # Add nodes
         for step in workflow_json["steps"]:
 
-            if step["task"]["action"] == "call_tool":
-                tool_name = step["task"]["tool_name"]
+            if step["action"] == "call_tool":
+                tool_name = step["tool_name"]
                 task_type = f"Tool({tool_name})"
                 color = "#3b82f6"  # Blue for tools
             else:
@@ -52,15 +52,11 @@ class WorkflowUtils:
 
             params = step.get("parameters", []) or []
             params_text = "\n".join(f"{html.escape(p['key'])}: {html.escape(str(p['value']))}" for p in params) or "None"
-            
-            results = step.get("results", []) or []
-            results_text = "\n".join(html.escape(r['key']) for r in results) or "None"
 
             title = (
                 f"{step['id']}\n"
                 f"Type: {task_type}\n\n"
                 f"Parameters:\n{params_text}\n\n"
-                f"Results:\n{results_text}"
             )
 
             net.add_node(
@@ -72,8 +68,18 @@ class WorkflowUtils:
             )
 
         # Add edges
-        for i in range(len(workflow_json["steps"]) - 1):
-            net.add_edge(workflow_json["steps"][i]["id"], workflow_json["steps"][i + 1]["id"])
+        has_transitions = any("transitions" in step for step in workflow_json["steps"])
+        if has_transitions:
+            # Non-linear workflow with explicit transitions
+            for step in workflow_json["steps"]:
+                transitions = step["transitions"]
+                for transition in transitions:
+                    net.add_edge(step["id"], transition["success"], color="#10b981")  # Green for success
+                    net.add_edge(step["id"], transition["failure"], color="#ef4444")  # Red for failure
+        else:
+            # Linear workflow
+            for i in range(len(workflow_json["steps"]) - 1):
+                net.add_edge(workflow_json["steps"][i]["id"], workflow_json["steps"][i + 1]["id"])
     
         # Generate output directory
         results = os.path.join(ROOT, "results")

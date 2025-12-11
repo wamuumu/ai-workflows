@@ -2,7 +2,8 @@ import os
 import getpass
 import json
 
-from google.genai import Client, types
+from google.genai import Client
+from google.genai.types import GenerateContentConfig
 from pydantic import BaseModel
 from enum import Enum
 from tools.registry import ToolRegistry
@@ -45,7 +46,7 @@ class GeminiAgent:
         # Instantiate a chat session with system prompt    
         chat_session = self.client.chats.create(
             model=self.model_name,
-            config=types.GenerateContentConfig(
+            config=GenerateContentConfig(
                 system_instruction=system_prompt
             )
         )
@@ -90,6 +91,7 @@ class GeminiAgent:
 
         step_results = {}
         workflow_text = workflow.model_dump_json()
+        workflow_json = json.loads(workflow_text)
 
         if debug:
             print("System Prompt for execution:", system_prompt)
@@ -98,13 +100,15 @@ class GeminiAgent:
         
         chat_session = self.client.chats.create(
             model=self.model_name,
-            config=types.GenerateContentConfig(
+            config=GenerateContentConfig(
                 system_instruction=system_prompt,
                 response_mime_type='application/json',
                 response_schema=response_model
             )
         )
 
+        steps_count = 0
+        total_steps = len(workflow_json["steps"])
         next_message = f"Workflow to execute: \n\n{workflow_text}"
 
         while True:
@@ -126,18 +130,16 @@ class GeminiAgent:
                 input("Press Enter to continue...")
             
             pstep = payload.get("step_id")
-            ptype = payload.get("type")
-            pfinished = payload.get("finished", False)
-            paction = ptype.get("action")
+            paction = payload.get("action")
 
-            if pfinished:
+            if steps_count >= total_steps:
                 print("\nFinal response from workflow execution:")
                 print(json.dumps(payload, indent=2))
                 break
 
             elif paction == "call_tool":
-                tool_name = ptype.get("tool_name")
-                parameters = {p["key"]: p["value"] for p in ptype.get("parameters", [])}
+                tool_name = payload.get("tool_name")
+                parameters = {p["key"]: p["value"] for p in payload.get("tool_parameters", [])}
 
                 print(f"\nExecutor requests tool call for {pstep}: {tool_name} with {parameters}")
                 
@@ -153,10 +155,8 @@ class GeminiAgent:
                 if debug:
                     print(f"Tool {tool_name} returned results: {results}")
                     input("Press Enter to continue...")
-                continue
-
             elif paction == "call_llm":
-                results = ptype.get("results")
+                results = payload.get("llm_results")
 
                 print(f"\nExecutor received LLM action for {pstep} with results: {results}")
 
@@ -164,20 +164,20 @@ class GeminiAgent:
                 next_message = json.dumps({"state": step_results, "resume": True})
                 if debug:
                     input("Press Enter to continue...")
-                continue
             else:
                 raise ValueError(f"Unknown step action: {paction}")
+            
+            steps_count += 1
         
         print("Workflow execution completed.")
             
-
     def _call_llm_structured(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
         """Private method to get the structured response from the model."""
         
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=user_prompt,
-            config=types.GenerateContentConfig(
+            config=GenerateContentConfig(
                 system_instruction=system_prompt,
                 response_mime_type= 'application/json',
                 response_schema=response_model

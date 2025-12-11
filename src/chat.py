@@ -1,4 +1,4 @@
-from agents.cerebras import CerebrasAgent
+from agents.cerebras import CerebrasAgent, CerebrasModel
 from models.linear_workflow import LinearWorkflow
 from models.response import Response
 from workflows.utils import WorkflowUtils
@@ -6,7 +6,7 @@ from utils.prompts import SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT, EXECUTOR_SYSTEM_PRO
 from tools.registry import ToolRegistry
 
 # Initialize the agent
-cerebras = CerebrasAgent()
+cerebras = CerebrasAgent(model_name=CerebrasModel.GPT_OSS)
 
 # Set up the prompts
 chat_prompt_with_tools = f"{CHAT_SYSTEM_PROMPT}\n{ToolRegistry.to_prompt_format()}\n"

@@ -103,17 +103,21 @@ class CerebrasAgent:
         """Execute the generated workflow."""
         
         step_results = {}
-        workflow_json = workflow.model_dump_json(indent=2)
+        workflow_text = workflow.model_dump_json()
+        workflow_json = json.loads(workflow_text)
 
         if debug:
             print("System Prompt for final generation:", system_prompt)
-            print("Workflow JSON:", workflow_json)
+            print("Workflow JSON:", workflow_text)
             input("Press Enter to continue or Ctrl+C to exit...")
         
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Workflow to execute: \n\n{workflow_json}"}
+            {"role": "user", "content": f"Workflow to execute: \n\n{workflow_text}"}
         ]
+
+        steps_count = 0
+        total_steps = len(workflow_json["steps"])
 
         while True:
             response: BaseModel = self._call_llm_structured(messages, response_model)
@@ -128,18 +132,16 @@ class CerebrasAgent:
                 input("Press Enter to continue...")
             
             pstep = payload.get("step_id")
-            ptype = payload.get("type")
-            pfinished = payload.get("finished", False)
-            paction = ptype.get("action")
+            paction = payload.get("action")
 
-            if pfinished:
+            if steps_count >= total_steps:
                 print("\nFinal response from workflow execution:")
                 print(json.dumps(payload, indent=2))
                 break
 
             elif paction == "call_tool":
-                tool_name = ptype.get("tool_name")
-                parameters = {p["key"]: p["value"] for p in ptype.get("parameters", [])}
+                tool_name = payload.get("tool_name")
+                parameters = {p["key"]: p["value"] for p in payload.get("tool_parameters", [])}
 
                 print(f"\nExecutor requests tool call for {pstep}: {tool_name} with {parameters}")
                 
@@ -156,10 +158,8 @@ class CerebrasAgent:
                 if debug:
                     print(f"Tool {tool_name} returned results: {results}")
                     input("Press Enter to continue...")
-                continue
-
             elif paction == "call_llm":
-                results = ptype.get("results")
+                results = payload.get("llm_results")
 
                 print(f"\nExecutor received LLM action for {pstep} with results: {results}")
 
@@ -168,9 +168,10 @@ class CerebrasAgent:
                 messages.append({"role": "system", "content": json.dumps({"state": step_results, "resume": True})})
                 if debug:
                     input("Press Enter to continue...")
-                continue
             else:
                 raise ValueError(f"Unknown step action: {paction}")
+
+            steps_count += 1
         
         print("Workflow execution completed.")
             
