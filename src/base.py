@@ -1,7 +1,5 @@
-import json
-
 from agents.google import GeminiAgent
-from models.workflow import StructuredWorkflow
+from models.structured_workflow import StructuredWorkflow
 from workflows.utils import WorkflowUtils
 from utils.prompts import SYSTEM_PROMPT, USER_PROMPTS
 from tools.registry import ToolRegistry
@@ -17,7 +15,8 @@ user_prompt = USER_PROMPTS[0]
 workflow = gemini.generate_workflow(system_prompt_with_tools, user_prompt, response_model=StructuredWorkflow, debug=True)
 
 print("\nGenerated Workflow:")
-print(json.dumps(workflow.model_dump(), indent=2))
+print(workflow.model_dump_json(indent=2))
 
+# Generate HTML visualization
 wf_utils = WorkflowUtils(tools=ToolRegistry.get_all())
 wf_utils.generate_html(workflow)

@@ -7,19 +7,17 @@ class Parameter(BaseModel):
     value: Union[str, int, float, bool]
     from_step: Optional[str] = None
 
-class Result(BaseModel):
-    """An object representing a result item in a workflow step."""
-    key: str
-    description: str
-
 class ToolAction(BaseModel):
     """An action to call a tool."""
     action: Literal["call_tool"]
     tool_name: str
+    parameters: List[Parameter]
 
 class LLMAction(BaseModel):
     """An action to call a LLM."""
     action: Literal["call_llm"]
+    description: str
+    parameters: List[Parameter]
 
 class GlobalTransitions(BaseModel):
     rerun: Literal["default_rerun_logic"]
@@ -37,8 +35,6 @@ class Step(BaseModel):
     title: str
     description: str
     task: Union[ToolAction, LLMAction]
-    parameters: Optional[List[Parameter]] = None
-    results: List[Result]
     transitions: StepTransitions # ? Should we implement complex conditional logic
     thoughts: str
 

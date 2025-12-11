@@ -5,6 +5,7 @@ import json
 from cerebras.cloud.sdk import Cerebras
 from pydantic import BaseModel
 from enum import Enum
+from tools.registry import ToolRegistry
 from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
@@ -30,11 +31,14 @@ class CerebrasAgent:
         if debug:
             print("System Prompt:", system_prompt)
             print("User Prompt:", user_prompt)
-            exit = input("Continue? (y/n): ")
-            if exit.lower() != 'y':
-                raise KeyboardInterrupt("Execution stopped by user.")
+            input("Press Enter to continue or Ctrl+C to exit...")
         
-        return self._call_llm_structured(system_prompt, user_prompt, response_model)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        return self._call_llm_structured(messages, response_model)
 
     def chat(self, system_prompt: str, user_prompt: str, debug: bool = False):
         """Chat using the Cerebras model with multi-turn conversation."""
@@ -43,9 +47,7 @@ class CerebrasAgent:
         if debug:
             print("System Prompt:", system_prompt)
             print("User Prompt:", user_prompt)
-            cont = input("Continue? (y/n): ")
-            if cont.lower() != "y":
-                raise KeyboardInterrupt("Execution stopped by user.")
+            input("Press Enter to continue or Ctrl+C to exit...")
 
         # Keep the full conversation history
         messages = [
@@ -79,23 +81,99 @@ class CerebrasAgent:
     def generate_workflow_from_chat(self, messages: list, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
         """Generate a workflow from the chat history."""
         
-        if debug:
-            print("System Prompt for final generation:", system_prompt)
-            cont = input("Continue? (y/n): ")
-            if cont.lower() != "y":
-                raise KeyboardInterrupt("Execution stopped by user.")
-
         # Compile chat history into a single prompt
         history_text = "\n".join(
             f"{msg['role'].capitalize()}: {msg['content']}" for msg in messages
         )
         final_prompt = f"{system_prompt}\n\nChat History:\n{history_text}\n\nPlease provide the final workflow."
 
-        return self._call_llm_structured(system_prompt, final_prompt, response_model)
-        
-    def execute_workflow(self, system_prompt: str, workflow: BaseModel):
-        raise NotImplementedError("Workflow execution is not implemented yet.")
+        if debug:
+            print("System Prompt for final generation:", system_prompt)
+            print("Final Prompt:", final_prompt)
+            input("Press Enter to continue or Ctrl+C to exit...")
 
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": final_prompt}
+        ]
+
+        return self._call_llm_structured(messages, response_model)
+        
+    def execute_workflow(self, system_prompt: str, workflow: BaseModel, response_model: BaseModel, debug : bool = False):
+        """Execute the generated workflow."""
+        
+        step_results = {}
+        workflow_json = workflow.model_dump_json(indent=2)
+
+        if debug:
+            print("System Prompt for final generation:", system_prompt)
+            print("Workflow JSON:", workflow_json)
+            input("Press Enter to continue or Ctrl+C to exit...")
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Workflow to execute: \n\n{workflow_json}"}
+        ]
+
+        while True:
+            response: BaseModel = self._call_llm_structured(messages, response_model)
+
+            try:
+                payload = response.model_dump()
+            except Exception as e:
+                raise ValueError(f"Failed to parse step response: {e}")
+            
+            if debug:
+                print("Executor received payload:", json.dumps(payload, indent=2))
+                input("Press Enter to continue...")
+            
+            pstep = payload.get("step_id")
+            ptype = payload.get("type")
+            pfinished = payload.get("finished", False)
+            paction = ptype.get("action")
+
+            if pfinished:
+                print("\nFinal response from workflow execution:")
+                print(json.dumps(payload, indent=2))
+                break
+
+            elif paction == "call_tool":
+                tool_name = ptype.get("tool_name")
+                parameters = {p["key"]: p["value"] for p in ptype.get("parameters", [])}
+
+                print(f"\nExecutor requests tool call for {pstep}: {tool_name} with {parameters}")
+                
+                tool = ToolRegistry.get(tool_name)
+                
+                try:
+                    results = tool.run(**parameters)
+                except Exception as e:
+                    raise RuntimeError(f"Tool {tool_name} execution failed: {e}")
+                
+                step_results[pstep] = results
+                messages.append({"role": "assistant", "content": json.dumps(payload)})
+                messages.append({"role": "system", "content": json.dumps({"tool_result": results, "state": step_results, "resume": True})})
+                if debug:
+                    print(f"Tool {tool_name} returned results: {results}")
+                    input("Press Enter to continue...")
+                continue
+
+            elif paction == "call_llm":
+                results = ptype.get("results")
+
+                print(f"\nExecutor received LLM action for {pstep} with results: {results}")
+
+                step_results[pstep] = results
+                messages.append({"role": "assistant", "content": json.dumps(payload)})
+                messages.append({"role": "system", "content": json.dumps({"state": step_results, "resume": True})})
+                if debug:
+                    input("Press Enter to continue...")
+                continue
+            else:
+                raise ValueError(f"Unknown step action: {paction}")
+        
+        print("Workflow execution completed.")
+            
     def _call_llm(self, messages: list) -> str:
         """Private method to call the LLM and get a text response."""
 
@@ -107,14 +185,9 @@ class CerebrasAgent:
 
         return response.choices[0].message.content
 
-    def _call_llm_structured(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
+    def _call_llm_structured(self, messages: list, response_model: BaseModel) -> BaseModel:
         """Private method to get the structured response from the model."""
         
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": user_prompt}
-        ]
-
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
@@ -122,7 +195,7 @@ class CerebrasAgent:
                 "type": "json_schema",
                 "json_schema": {
                     "name": "workflow_schema",
-                    "stritct": True,
+                    "strict": True,
                     "schema": response_model.model_json_schema()
                 }
             }
