@@ -1,16 +1,32 @@
 import re
 
-from typing import Optional
+from typing import TypedDict, Optional
 from textblob import TextBlob
 from translate import Translator
 from tools.decorator import tool
+
+class CleanTextOutput(TypedDict):
+    original_text: str
+    cleaned_text: str
+    original_length: int
+    cleaned_length: int
+
+class AnalyzeSentimentOutput(TypedDict):
+    polarity: float
+    label: str
+
+class TranslateTextOutput(TypedDict):
+    original_text: str
+    translated_text: str
+    source_language: str
+    target_language: str
 
 @tool(
     name="clean_text",
     description="Clean and normalize text by removing special characters, extra whitespace, and optionally converting to lowercase.",
     category="text"
 )
-def clean_text(text: str, lowercase: Optional[bool] = True, remove_punctuation: Optional[bool] = False) -> dict:
+def clean_text(text: str, lowercase: Optional[bool] = True, remove_punctuation: Optional[bool] = False) -> CleanTextOutput:
     try:
         cleaned = text
         
@@ -25,12 +41,12 @@ def clean_text(text: str, lowercase: Optional[bool] = True, remove_punctuation: 
         if lowercase:
             cleaned = cleaned.lower()
         
-        return {
-            "original_text": text,
-            "cleaned_text": cleaned,
-            "original_length": len(text),
-            "cleaned_length": len(cleaned)
-        }
+        return CleanTextOutput(
+            original_text=text,
+            cleaned_text=cleaned,
+            original_length=len(text),
+            cleaned_length=len(cleaned)
+        )
     except Exception as e:
         return {"error": str(e)}
 
@@ -39,26 +55,26 @@ def clean_text(text: str, lowercase: Optional[bool] = True, remove_punctuation: 
     description="Analyze the sentiment of a given text and return polarity and classification label.",
     category="text"
 )
-def analyze_sentiment(text: str) -> dict:
+def analyze_sentiment(text: str) -> AnalyzeSentimentOutput:
     blob = TextBlob(text)
     polarity = blob.sentiment.polarity
     label = "positive" if polarity > 0 else "negative" if polarity < 0 else "neutral"
-    return {"polarity": polarity, "label": label}
+    return AnalyzeSentimentOutput(polarity=polarity, label=label)
 
 @tool(
     name="translate_text",
     description="Translate text from one language to another.",
     category="text"
 )
-def translate_text(text: str, source_lang: str, target_lang: str) -> dict:
+def translate_text(text: str, source_lang: str, target_lang: str) -> TranslateTextOutput:
     try:
         translator = Translator(from_lang=source_lang, to_lang=target_lang)
         translated_text = translator.translate(text)
-        return {
-            "original_text": text,
-            "translated_text": translated_text,
-            "source_language": source_lang,
-            "target_language": target_lang
-        }
+        return TranslateTextOutput(
+            original_text=text,
+            translated_text=translated_text,
+            source_language=source_lang,
+            target_language=target_lang
+        )
     except Exception as e:
         return {"error": str(e)}

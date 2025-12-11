@@ -1,5 +1,6 @@
 import requests
 
+from typing import TypedDict, List
 from geopy.geocoders import Nominatim
 from tools.decorator import tool
 
@@ -34,12 +35,17 @@ WEATHER_CODE_LABELS = {
     99: "thunderstorm with heavy hail",
 }
 
+class WeatherOutput(TypedDict):
+    forecasts: List[str]
+    max_temps: List[float]
+    min_temps: List[float]
+
 @tool(
     name="current_weather", 
     description="Get the current weather for a specified location for a certain amount of days.",    
     category="weather"
 )
-def get_weather(location: str, forecast_days: int = 7) -> dict: 
+def get_weather(location: str, forecast_days: int = 7) -> WeatherOutput: 
     try:
         geolocator = Nominatim(user_agent="ai-workflows")
         location = geolocator.geocode(location)
@@ -51,8 +57,12 @@ def get_weather(location: str, forecast_days: int = 7) -> dict:
         weather_response = requests.get(weather_url, timeout=5)
         weather_response.raise_for_status()
         weather_data = weather_response.json()
-        weather_data['daily']['weather_labels'] = [WEATHER_CODE_LABELS.get(code, "unknown") for code in weather_data['daily']['weathercode']]
+        forecasts = [WEATHER_CODE_LABELS.get(code, "unknown") for code in weather_data['daily']['weathercode']]
 
-        return weather_data
+        return WeatherOutput(
+            forecasts=forecasts, 
+            max_temps=weather_data['daily']['temperature_2m_max'], 
+            min_temps=weather_data['daily']['temperature_2m_min']
+        )
     except Exception as e:
         return {"error": str(e)}

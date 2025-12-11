@@ -1,14 +1,23 @@
 import requests
 
+from typing import TypedDict, List
 from geopy.geocoders import Nominatim
 from tools.decorator import tool
+
+class CityAttractionsOutput(TypedDict):
+    city: str
+    attractions: List[str]
+
+class ActivitiesOutput(TypedDict):
+    city: str
+    activities: List[str]
 
 @tool(
     name="get_city_attractions",
     description="Get a list of popular tourist attractions in a given city.",
     category="travel"
 )
-def get_city_attractions(city: str, limit: int = 10) -> list:
+def get_city_attractions(city: str, limit: int = 10) -> CityAttractionsOutput:
     try:
         geolocator = Nominatim(user_agent="ai-workflows")
         location = geolocator.geocode(city)
@@ -29,7 +38,7 @@ def get_city_attractions(city: str, limit: int = 10) -> list:
             if name:
                 attractions.add(name)
         
-        return list(attractions)
+        return CityAttractionsOutput(city=city, attractions=list(attractions))
     except Exception as e:
         return {"error": str(e)}
 
@@ -38,7 +47,7 @@ def get_city_attractions(city: str, limit: int = 10) -> list:
     description="Get a list of indoor activities and venues in a given city (museums, theaters, shopping malls, etc.).",
     category="travel"
 )
-def get_indoor_activities(city: str, limit: int = 10) -> list:
+def get_indoor_activities(city: str, limit: int = 10) -> ActivitiesOutput:
     try:
         geolocator = Nominatim(user_agent="ai-workflows")
         location = geolocator.geocode(city)
@@ -59,7 +68,7 @@ def get_indoor_activities(city: str, limit: int = 10) -> list:
             if name:
                 activities.add(name)
         
-        return list(activities)
+        return ActivitiesOutput(city=city, activities=list(activities))
     except Exception as e:
         return {"error": str(e)}
 
@@ -68,7 +77,7 @@ def get_indoor_activities(city: str, limit: int = 10) -> list:
     description="Get a list of outdoor activities and venues in a given city (parks, hiking trails, sports facilities, etc.).",
     category="travel"
 )
-def get_outdoor_activities(city: str, limit: int = 10) -> list:
+def get_outdoor_activities(city: str, limit: int = 10) -> ActivitiesOutput:
     try:
         geolocator = Nominatim(user_agent="ai-workflows")
         location = geolocator.geocode(city)
@@ -89,6 +98,6 @@ def get_outdoor_activities(city: str, limit: int = 10) -> list:
             if name:
                 activities.add(name)
         
-        return list(activities)
+        return ActivitiesOutput(city=city, activities=list(activities))
     except Exception as e:
         return {"error": str(e)}

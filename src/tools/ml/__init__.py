@@ -1,16 +1,39 @@
 import numpy as np
 
+from typing import TypedDict, List
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
 from tools.decorator import tool
+
+class EmbeddingOutput(TypedDict):
+    embeddings: List[List[float]]
+    feature_names: List[str]
+    shape: tuple
+
+class ClusteringOutput(TypedDict):
+    labels: List[int]
+    cluster_centers: List[List[float]]
+    n_clusters: int
+    inertia: float
+
+class RegressionOutput(TypedDict):
+    coefficients: List[float]
+    intercept: float
+    r2_score: float
+    n_features: int
+    n_samples: int
+
+class PredictionOutput(TypedDict):
+    predictions: List[float]
+    n_predictions: int
 
 @tool(
     name="embed_text",
     description="Convert texts into numerical embeddings using TF-IDF vectorization.",
     category="ml"
 )
-def embed_text(texts: list, max_features: int = 100) -> dict:
+def embed_text(texts: list, max_features: int = 100) -> EmbeddingOutput:
     try:
         if not texts or not isinstance(texts, list):
             return {"error": "Input must be a non-empty list of texts."}
@@ -18,11 +41,11 @@ def embed_text(texts: list, max_features: int = 100) -> dict:
         vectorizer = TfidfVectorizer(max_features=max_features)
         embeddings = vectorizer.fit_transform(texts)
         
-        return {
-            "embeddings": embeddings.toarray().tolist(),
-            "feature_names": vectorizer.get_feature_names_out().tolist(),
-            "shape": embeddings.shape
-        }
+        return EmbeddingOutput(
+            embeddings=embeddings.toarray().tolist(),
+            feature_names=vectorizer.get_feature_names_out().tolist(),
+            shape=embeddings.shape
+        )
     except Exception as e:
         return {"error": str(e)}
 
@@ -31,7 +54,7 @@ def embed_text(texts: list, max_features: int = 100) -> dict:
     description="Cluster numerical data using K-Means algorithm.",
     category="ml"
 )
-def cluster_data(data: list, n_clusters: int = 3) -> dict:
+def cluster_data(data: list, n_clusters: int = 3) -> ClusteringOutput:
     try:
         if not data or not isinstance(data, list):
             return {"error": "Input must be a non-empty list of numerical vectors."}
@@ -43,12 +66,12 @@ def cluster_data(data: list, n_clusters: int = 3) -> dict:
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         labels = kmeans.fit_predict(data_array)
         
-        return {
-            "labels": labels.tolist(),
-            "cluster_centers": kmeans.cluster_centers_.tolist(),
-            "n_clusters": n_clusters,
-            "inertia": float(kmeans.inertia_)
-        }
+        return ClusteringOutput(
+            labels=labels.tolist(),
+            cluster_centers=kmeans.cluster_centers_.tolist(),
+            n_clusters=kmeans.n_clusters,
+            inertia=float(kmeans.inertia_)
+        )
     except Exception as e:
         return {"error": str(e)}
 
@@ -57,7 +80,7 @@ def cluster_data(data: list, n_clusters: int = 3) -> dict:
     description="Train a linear regression model on provided data and return model coefficients and R² score.",
     category="ml"
 )
-def train_regression(X: list, y: list) -> dict:
+def train_regression(X: list, y: list) -> RegressionOutput:
     try:
         if not X or not y or len(X) != len(y):
             return {"error": "X and y must be non-empty lists of the same length."}
@@ -74,13 +97,13 @@ def train_regression(X: list, y: list) -> dict:
         
         r2_score = model.score(X_array, y_array)
         
-        return {
-            "coefficients": model.coef_.tolist() if hasattr(model.coef_, 'tolist') else [float(model.coef_)],
-            "intercept": float(model.intercept_),
-            "r2_score": float(r2_score),
-            "n_features": X_array.shape[1] if len(X_array.shape) > 1 else 1,
-            "n_samples": len(y_array)
-        }
+        return RegressionOutput(
+            coefficients=model.coef_.tolist() if hasattr(model.coef_, 'tolist') else [float(model.coef_)],
+            intercept=float(model.intercept_),
+            r2_score=float(r2_score),
+            n_features=X_array.shape[1] if len(X_array.shape) > 1 else 1,
+            n_samples=len(y_array)
+        )
     except Exception as e:
         return {"error": str(e)}
 
@@ -89,7 +112,7 @@ def train_regression(X: list, y: list) -> dict:
     description="Make predictions using linear regression model parameters (coefficients and intercept).",
     category="ml"
 )
-def make_predictions(X: list, coefficients: list, intercept: float) -> dict:
+def make_predictions(X: list, coefficients: list, intercept: float) -> PredictionOutput:
     try:
         if not X or not coefficients:
             return {"error": "X and coefficients must be provided."}
@@ -104,9 +127,9 @@ def make_predictions(X: list, coefficients: list, intercept: float) -> dict:
         # Calculate predictions: y = X * coef + intercept
         predictions = np.dot(X_array, coef_array) + intercept
         
-        return {
-            "predictions": predictions.tolist() if hasattr(predictions, 'tolist') else [float(predictions)],
-            "n_predictions": len(predictions) if hasattr(predictions, '__len__') else 1
-        }
+        return PredictionOutput(
+            predictions=predictions.tolist() if hasattr(predictions, 'tolist') else [float(predictions)],
+            n_predictions=len(predictions) if hasattr(predictions, '__len__') else 1
+        )
     except Exception as e:
         return {"error": str(e)}

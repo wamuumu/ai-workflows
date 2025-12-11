@@ -1,5 +1,5 @@
-from tools.registry import Tool, ToolRegistry
 from typing import Optional
+from tools.registry import Tool, ToolRegistry
 
 def tool(*, name: str, description: str, category: Optional[str] = None):
     def decorator(function):
