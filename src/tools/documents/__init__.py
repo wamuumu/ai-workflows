@@ -54,5 +54,7 @@ def read_file(file_path: str) -> ReadFileOutput:
     category="documents"
 )
 def write_file(file_path: str, content: str) -> WriteFileOutput:
+    if not Path(file_path).parent.exists():
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
     Path(file_path).write_text(content, encoding='utf-8')
     return WriteFileOutput(file_path=file_path, status="written")
