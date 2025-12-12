@@ -11,7 +11,7 @@ WORKFLOWS = os.path.join(ROOT, "data", "workflows")
 VISUALIZATIONS = os.path.join(ROOT, "data", "visualizations")
 
 class WorkflowUtils:
-    """ Manager to handle workflow execution and visualization."""
+    """Utility class for managing workflows."""
 
     _run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
