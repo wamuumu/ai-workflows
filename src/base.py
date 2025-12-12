@@ -1,8 +1,8 @@
 from agents.google import GeminiAgent, GeminiModel
 from models.linear_workflow import LinearWorkflow
 from models.response import Response
-from workflows.utils import WorkflowUtils
-from utils.prompts import SYSTEM_PROMPT, EXECUTOR_SYSTEM_PROMPT, USER_PROMPTS
+from utils.workflow import WorkflowUtils
+from utils.prompt import SYSTEM_PROMPT, EXECUTOR_SYSTEM_PROMPT, USER_PROMPTS
 from tools.registry import ToolRegistry
 
 # Initialize the agent
