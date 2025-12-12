@@ -30,6 +30,15 @@ class WorkflowUtils:
             f.write(workflow_json)
 
     @classmethod
+    def load_json(cls, filepath: str, model: BaseModel) -> BaseModel:
+        """Load a workflow from a JSON file into the specified model format."""
+        
+        with open(filepath, "r", encoding="utf-8") as f:
+            workflow_data = f.read()
+
+        return model.model_validate_json(workflow_data)
+
+    @classmethod
     def save_html(cls, workflow: BaseModel):
         """Create a visual representation of the workflow using pyvis."""
         
