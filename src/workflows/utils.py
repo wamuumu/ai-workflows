@@ -26,8 +26,11 @@ class WorkflowUtils:
         filename = cls._get_filename("workflow", "json")
 
         # Write to file
-        with open(os.path.join(WORKFLOWS, filename), "w", encoding="utf-8") as f:
+        file_path = os.path.join(WORKFLOWS, filename)   
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(workflow_json)
+        
+        return file_path
 
     @classmethod
     def load_json(cls, filepath: str, model: BaseModel) -> BaseModel:
@@ -146,8 +149,11 @@ class WorkflowUtils:
 
         # Generate HTML file and save
         html_str = net.generate_html()
-        with open(os.path.join(VISUALIZATIONS, filename), "w", encoding="utf-8") as f:
+        file_path = os.path.join(VISUALIZATIONS, filename)
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(html_str)
+        
+        return file_path
     
     @classmethod
     def _check_folder(cls, folder_path: str):
