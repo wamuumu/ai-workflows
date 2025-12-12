@@ -86,6 +86,18 @@ class GeminiAgent:
 
         return self._call_llm_structured(system_prompt, final_prompt, response_model)
 
+    def generate_workflow_from_workflow(self, system_prompt: str, workflow: BaseModel, response_model: BaseModel, debug: bool = False) -> BaseModel:
+        """Generate a workflow from an existing workflow JSON."""
+
+        workflow_json = workflow.model_dump_json()
+
+        if debug:
+            print("System Prompt:", system_prompt)
+            print("Existing Workflow JSON:", workflow_json)
+            input("Press Enter to continue or Ctrl+C to exit...")
+
+        return self._call_llm_structured(system_prompt, workflow_json, response_model)
+
     def execute_workflow(self, system_prompt: str, workflow: BaseModel, response_model: BaseModel, debug : bool = False):
         """Execute the generated workflow."""
 

@@ -1,5 +1,6 @@
 import os
 import html
+import uuid
 
 from pydantic import BaseModel
 from pyvis.network import Network
@@ -8,10 +9,11 @@ from datetime import datetime
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 WORKFLOWS = os.path.join(ROOT, "data", "workflows")
 VISUALIZATIONS = os.path.join(ROOT, "data", "visualizations")
-RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 class WorkflowUtils:
     """ Manager to handle workflow execution and visualization."""
+
+    _run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     @classmethod
     def show(cls, workflow: BaseModel):
@@ -169,4 +171,4 @@ class WorkflowUtils:
     @classmethod
     def _get_filename(cls, prefix: str, extension: str) -> str:
         """Generate a timestamped filename."""
-        return f"{prefix}_{RUN_ID}.{extension}"
+        return f"{prefix}_{cls._run_id}_{uuid.uuid4().hex}.{extension}"
