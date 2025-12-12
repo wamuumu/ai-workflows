@@ -2,20 +2,35 @@ import os
 import html
 
 from pydantic import BaseModel
-from typing import Dict
 from pyvis.network import Network
 from datetime import datetime
-from tools.registry import Tool
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+WORKFLOWS = os.path.join(ROOT, "data", "workflows")
+VISUALIZATIONS = os.path.join(ROOT, "data", "visualizations")
+RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 class WorkflowUtils:
     """ Manager to handle workflow execution and visualization."""
 
-    def __init__(self, tools: Dict[str, Tool] = {}):
-        self.tools = tools    
-    
-    def generate_html(self, workflow: BaseModel):
+    @classmethod
+    def save_json(cls, workflow: BaseModel):
+        """Save the workflow as a JSON file."""
+        
+        workflow_json = workflow.model_dump_json(indent=2)
+        
+        # Create output directory if not exists
+        cls._check_folder(WORKFLOWS)
+
+        # Create timestamped filename
+        filename = cls._get_filename("workflow", "json")
+
+        # Write to file
+        with open(os.path.join(WORKFLOWS, filename), "w", encoding="utf-8") as f:
+            f.write(workflow_json)
+
+    @classmethod
+    def save_html(cls, workflow: BaseModel):
         """Create a visual representation of the workflow using pyvis."""
         
         workflow_json = workflow.model_dump()
@@ -81,7 +96,7 @@ class WorkflowUtils:
                 task_type = "LLM call"
                 color = "#8b5cf6"  # Purple for LLM calls
 
-            params = step.get("parameters", []) or []
+            params = step["parameters"] or []
             params_text = "\n".join(f"{html.escape(p['key'])}: {html.escape(str(p['value']))}" for p in params) or "None"
 
             title = (
@@ -114,15 +129,24 @@ class WorkflowUtils:
             for i in range(len(workflow_json["steps"]) - 1):
                 net.add_edge(workflow_json["steps"][i]["id"], workflow_json["steps"][i + 1]["id"])
     
-        # Generate output directory
-        results = os.path.join(ROOT, "results")
-        os.makedirs(results, exist_ok=True)
+        # Create output directory if not exists
+        cls._check_folder(VISUALIZATIONS)
 
         # Create timestamped filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = "workflow" + f"_{timestamp}.html"
+        filename = cls._get_filename("workflow", "html")
 
-        # Generate HTML file
+        # Generate HTML file and save
         html_str = net.generate_html()
-        with open(os.path.join(results, output_file), "w", encoding="utf-8") as f:
+        with open(os.path.join(VISUALIZATIONS, filename), "w", encoding="utf-8") as f:
             f.write(html_str)
+    
+    @classmethod
+    def _check_folder(cls, folder_path: str):
+        """Ensure the specified folder exists; create it if it doesn't."""
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+    @classmethod
+    def _get_filename(cls, prefix: str, extension: str) -> str:
+        """Generate a timestamped filename."""
+        return f"{prefix}_{RUN_ID}.{extension}"

@@ -19,9 +19,9 @@ workflow = cerebras.generate_workflow_from_chat(chat_history, SYSTEM_PROMPT, res
 print("\nGenerated Workflow:")
 print(workflow.model_dump_json(indent=2))
 
-# Generate HTML visualization
-wf_utils = WorkflowUtils(tools=ToolRegistry.get_all())
-wf_utils.generate_html(workflow)    
+# Save the workflow and its visualization
+WorkflowUtils.save_json(workflow)
+WorkflowUtils.save_html(workflow)
 
 # Execute the workflow
 cerebras.execute_workflow(EXECUTOR_SYSTEM_PROMPT, workflow, response_model=Response, debug=True)

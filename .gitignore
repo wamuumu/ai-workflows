@@ -8,5 +8,5 @@ __pycache__/
 .pytest_cache/
 *.pyc
 
-# Results
-results/
+# Data files
+data/
