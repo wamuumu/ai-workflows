@@ -204,8 +204,6 @@ class CerebrasAgent:
 
         json_data = json.dumps(json.loads(response.choices[0].message.content))
 
-        print("LLM returned JSON data:", json_data)
-
         try:
             return response_model.model_validate_json(json_data)
         except Exception as e:

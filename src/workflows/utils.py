@@ -14,6 +14,11 @@ class WorkflowUtils:
     """ Manager to handle workflow execution and visualization."""
 
     @classmethod
+    def show(cls, workflow: BaseModel):
+        """Display the workflow structure."""
+        print(workflow.model_dump_json(indent=2))
+
+    @classmethod
     def save_json(cls, workflow: BaseModel):
         """Save the workflow as a JSON file."""
         

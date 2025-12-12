@@ -16,12 +16,12 @@ user_prompt = USER_PROMPTS[0]
 chat_history = cerebras.chat(chat_prompt_with_tools, user_prompt, debug=False)
 workflow = cerebras.generate_workflow_from_chat(chat_history, SYSTEM_PROMPT, response_model=StructuredWorkflow, debug=False)
 
-print("\nGenerated Workflow:")
-print(workflow.model_dump_json(indent=2))
+WorkflowUtils.show(workflow)
 
 # Save the workflow and its visualization
-WorkflowUtils.save_json(workflow)
-WorkflowUtils.save_html(workflow)
+json_path = WorkflowUtils.save_json(workflow)
+html_path = WorkflowUtils.save_html(workflow)
 
 # Execute the workflow
+# workflow = WorkflowUtils.load_json(json_path, StructuredWorkflow)
 cerebras.execute_workflow(EXECUTOR_SYSTEM_PROMPT, workflow, response_model=Response, debug=True)

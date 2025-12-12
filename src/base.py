@@ -15,12 +15,12 @@ user_prompt = USER_PROMPTS[0]
 # Generate the workflow (one-shot)
 workflow = gemini.generate_workflow(system_prompt_with_tools, user_prompt, response_model=LinearWorkflow, debug=True)
 
-print("\nGenerated Workflow:")
-print(workflow.model_dump_json(indent=2))
+WorkflowUtils.show(workflow)
 
 # Save the workflow and its visualization
-WorkflowUtils.save_json(workflow)
-WorkflowUtils.save_html(workflow)
+json_path = WorkflowUtils.save_json(workflow)
+html_path = WorkflowUtils.save_html(workflow)
 
-# Execute the workflow
+# Execute the workflow 
+# workflow = WorkflowUtils.load_json(json_path, LinearWorkflow)
 gemini.execute_workflow(EXECUTOR_SYSTEM_PROMPT, workflow, response_model=Response, debug=True)
