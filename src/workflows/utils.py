@@ -31,13 +31,44 @@ class WorkflowUtils:
 
         # Minimal styling
         net.set_options("""
-        {
-            "nodes": {"font": {"size": 14}, "borderWidth": 2, "shadow": true, "shape": "box"},
-            "edges": {"arrows": {"to": {"enabled": true}}, "smooth": {"enabled": true, "type": "cubicBezier"}, "width": 2, "shadow": true},
-            "physics": {"stabilization": {"iterations": 200}},
-            "interaction": {"hover": true, "navigationButtons": true, "keyboard": true}
-        }
-        """)
+            {
+                "nodes": {
+                    "font": {"size": 14},
+                    "borderWidth": 2,
+                    "shadow": true,
+                    "shape": "box"
+                },
+                "edges": {
+                    "arrows": {"to": {"enabled": true}},
+                    "smooth": {"enabled": true, "type": "cubicBezier"},
+                    "width": 2,
+                    "shadow": true
+                },
+                "physics": {
+                    "enabled": true,
+                    "stabilization": {
+                        "enabled": true,
+                        "iterations": 1000,
+                        "updateInterval": 25
+                    },
+                    "solver": "barnesHut",
+                    "barnesHut": {
+                        "gravitationalConstant": -8000,
+                        "centralGravity": 0.3,
+                        "springLength": 200,
+                        "springConstant": 0.04,
+                        "damping": 0.95,
+                        "avoidOverlap": 0.2
+                    }
+                },
+                "interaction": {
+                    "hover": true,
+                    "navigationButtons": true,
+                    "keyboard": true
+                }
+            }
+            """
+            )
 
         # Add nodes
         for step in workflow_json["steps"]:
@@ -72,10 +103,12 @@ class WorkflowUtils:
         if has_transitions:
             # Non-linear workflow with explicit transitions
             for step in workflow_json["steps"]:
-                transitions = step["transitions"]
-                for transition in transitions:
-                    net.add_edge(step["id"], transition["success"], color="#10b981")  # Green for success
-                    net.add_edge(step["id"], transition["failure"], color="#ef4444")  # Red for failure
+                transitions = step["transitions"] or []
+                if len(transitions) == 1:
+                    net.add_edge(step["id"], transitions[0]["next_step"])
+                else:
+                    for transition in transitions:
+                        net.add_edge(step["id"], transition["next_step"], label=transition["condition"])
         else:
             # Linear workflow
             for i in range(len(workflow_json["steps"]) - 1):

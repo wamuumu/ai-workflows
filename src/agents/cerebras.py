@@ -116,9 +116,6 @@ class CerebrasAgent:
             {"role": "user", "content": f"Workflow to execute: \n\n{workflow_text}"}
         ]
 
-        steps_count = 0
-        total_steps = len(workflow_json["steps"])
-
         while True:
             response: BaseModel = self._call_llm_structured(messages, response_model)
 
@@ -133,12 +130,15 @@ class CerebrasAgent:
             
             pstep = payload.get("step_id")
             paction = payload.get("action")
+            for step in workflow_json["steps"]:
+                if step["id"] == pstep:
+                    break
+            pfinal = step["is_final"]
 
-            if steps_count >= total_steps:
+            if pfinal:
                 print("\nFinal response from workflow execution:")
                 print(json.dumps(payload, indent=2))
                 break
-
             elif paction == "call_tool":
                 tool_name = payload.get("tool_name")
                 parameters = {p["key"]: p["value"] for p in payload.get("tool_parameters", [])}
@@ -158,6 +158,7 @@ class CerebrasAgent:
                 if debug:
                     print(f"Tool {tool_name} returned results: {results}")
                     input("Press Enter to continue...")
+                continue
             elif paction == "call_llm":
                 results = payload.get("llm_results")
 
@@ -168,10 +169,9 @@ class CerebrasAgent:
                 messages.append({"role": "system", "content": json.dumps({"state": step_results, "resume": True})})
                 if debug:
                     input("Press Enter to continue...")
+                continue
             else:
                 raise ValueError(f"Unknown step action: {paction}")
-
-            steps_count += 1
         
         print("Workflow execution completed.")
             
@@ -203,6 +203,8 @@ class CerebrasAgent:
         )
 
         json_data = json.dumps(json.loads(response.choices[0].message.content))
+
+        print("LLM returned JSON data:", json_data)
 
         try:
             return response_model.model_validate_json(json_data)

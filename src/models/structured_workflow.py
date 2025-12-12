@@ -7,10 +7,10 @@ class Parameter(BaseModel):
     value: Union[str, int, float, bool] = Field(..., description="The parameter value")
     from_step: Optional[str] = Field(None, description="Reference to a previous step's output")
 
-class Transitions(BaseModel):
-    """A transition from one step to another in a structured workflow."""
-    success: str = Field(..., description="The step ID to transition to on success")
-    failure: str = Field(..., description="The step ID to transition to on failure")
+class Transition(BaseModel):
+    """A single transition in a structured workflow."""
+    condition: str = Field(..., description="Condition for this transition")
+    next_step: str = Field(..., description="The step ID to transition to")
 
 class Step(BaseModel):
     """A single step in a structured workflow."""
@@ -20,12 +20,15 @@ class Step(BaseModel):
     action: Literal["call_tool", "call_llm"] = Field(..., description="The action type for this step")
     tool_name: Optional[str] = Field(None, description="Name of the tool to call, ONLY if action is 'call_tool'")
     parameters: Optional[List[Parameter]] = Field(None, description="Parameters for the tool or LLM")
-    transitions: Transitions = Field(..., description="Transitions for the step")
+    transitions: Optional[List[Transition]] = Field(None, description="Transitions for the steps")
+    is_final: bool = Field(False, description="Indicates if this is the final step in the workflow")
     thoughts: str = Field(..., description="The agent's thoughts or reasoning for this step")
 
     @model_validator(mode="after")
     def validate_step(self):
-        if self.action == "call_tool" and not self.tool_name:
+        if self.is_final and self.transitions:
+            raise ValueError("Final steps cannot have transitions.")
+        elif self.action == "call_tool" and not self.tool_name:
             raise ValueError("tool_name must be provided when action is 'call_tool'")
         elif self.action == "call_llm" and self.tool_name is not None:
             raise ValueError("tool_name must be None when action is 'call_llm'")

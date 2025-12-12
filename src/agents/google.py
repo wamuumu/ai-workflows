@@ -107,10 +107,7 @@ class GeminiAgent:
             )
         )
 
-        steps_count = 0
-        total_steps = len(workflow_json["steps"])
         next_message = f"Workflow to execute: \n\n{workflow_text}"
-
         while True:
 
             try:
@@ -131,8 +128,12 @@ class GeminiAgent:
             
             pstep = payload.get("step_id")
             paction = payload.get("action")
+            for step in workflow_json["steps"]:
+                if step["id"] == pstep:
+                    break
+            pfinal = step["is_final"]
 
-            if steps_count >= total_steps:
+            if pfinal:
                 print("\nFinal response from workflow execution:")
                 print(json.dumps(payload, indent=2))
                 break
@@ -155,6 +156,7 @@ class GeminiAgent:
                 if debug:
                     print(f"Tool {tool_name} returned results: {results}")
                     input("Press Enter to continue...")
+                continue
             elif paction == "call_llm":
                 results = payload.get("llm_results")
 
@@ -164,10 +166,9 @@ class GeminiAgent:
                 next_message = json.dumps({"state": step_results, "resume": True})
                 if debug:
                     input("Press Enter to continue...")
+                continue
             else:
                 raise ValueError(f"Unknown step action: {paction}")
-            
-            steps_count += 1
         
         print("Workflow execution completed.")
             
