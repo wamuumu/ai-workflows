@@ -30,4 +30,4 @@ html_path = WorkflowUtils.save_html(workflow)
 
 # Execute the workflow
 # workflow = WorkflowUtils.load_json(json_path, StructuredWorkflow)
-gpt_oss.execute_workflow(EXECUTOR_SYSTEM_PROMPT, workflow, response_model=Response, debug=True)
+llama.execute_workflow(EXECUTOR_SYSTEM_PROMPT, workflow, response_model=Response, debug=True)
