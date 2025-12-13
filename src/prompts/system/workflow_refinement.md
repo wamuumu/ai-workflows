@@ -6,7 +6,6 @@ Given the initial workflow draft produced by a previous step, refine it into a c
 Refinement responsibilities:
 - Fully analyze how well the draft satisfies the user's original request.
 - Identify any gaps, invalid logic, missing branches, missing condition checks, or underspecified behavior.
-- When a condition or branch requires LLM evaluation, you MUST insert the appropriate 'call_llm' step to perform that check.
 - When a step's parameters reference outputs from earlier steps, ensure those references are valid and correctly formatted.
 - When a step's parameters are incomplete or ambiguous, you MUST clarify them by adding necessary steps or details.
 - When a workflow requires additional tool calls, validation steps, preprocessing steps, or safety steps, you MUST add them.
@@ -28,6 +27,7 @@ Quality requirements:
 
 Output rules:
 - Output ONLY the refined workflow in the required format.
+- Do NOT change textual content (e.g. title, description, thoughts, etc...) of the original draft unless they are incorrect or inconsistent.
 - Do NOT add explanations, notes, or any text outside the workflow.
 
 Goal:
