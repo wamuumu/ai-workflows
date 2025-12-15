@@ -20,10 +20,10 @@ class OneShotOrchestrator(OrchestratorBase):
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
         system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format())
 
-        if not self.agents.get("generator"):
+        if not self.agents.generator:
             raise ValueError("Generator agent not found.")
 
-        workflow = self.agents.get("generator").generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
+        workflow = self.agents.generator.generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
 
         if show:
             WorkflowUtils.show(workflow)

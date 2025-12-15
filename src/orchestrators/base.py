@@ -36,10 +36,10 @@ class OrchestratorBase(ABC):
         chat_prompt = PromptUtils.get_system_prompt("chat_clarification")
         chat_prompt_with_tools = PromptUtils.inject(chat_prompt, ToolRegistry.to_prompt_format())
 
-        if not self.agents.get("chatter"):
+        if not self.agents.chatter:
             raise ValueError("Chatter agent not found.")
 
-        chat_session = self.agents.get("chatter").init_chat(chat_prompt_with_tools)
+        chat_session = self.agents.chatter.init_chat(chat_prompt_with_tools)
         next_message = user_prompt
 
         while True:
@@ -69,10 +69,10 @@ class OrchestratorBase(ABC):
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
         system_prompt_with_tools_and_chat = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(), chat_history=history)
 
-        if not self.agents.get("generator"):
+        if not self.agents.generator:
             raise ValueError("Generator agent not found.")
 
-        return self.agents.get("generator").generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
+        return self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
 
     def refine(self, user_prompt: str, workflow: BaseModel, debug: bool = False) -> BaseModel:
 
@@ -87,10 +87,10 @@ class OrchestratorBase(ABC):
         refine_prompt = PromptUtils.get_system_prompt("workflow_refinement")
         refine_prompt_with_tools = PromptUtils.inject(refine_prompt, ToolRegistry.to_prompt_format(), original_user_prompt=user_prompt)
 
-        if not self.agents.get("refiner"):
+        if not self.agents.refiner:
             raise ValueError("Refiner agent not found.")
 
-        return self.agents.get("refiner").generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
+        return self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
 
@@ -102,10 +102,10 @@ class OrchestratorBase(ABC):
         workflow_json = json.loads(workflow.model_dump_json())
         execution_prompt = PromptUtils.get_system_prompt("workflow_execution")
 
-        if not self.agents.get("executor"):
+        if not self.agents.executor:
             raise ValueError("Executor agent not found.")
 
-        chat_session = self.agents.get("executor").init_structured_chat(execution_prompt, Response)
+        chat_session = self.agents.executor.init_structured_chat(execution_prompt, Response)
         next_message = workflow.model_dump_json()
 
         while True:
