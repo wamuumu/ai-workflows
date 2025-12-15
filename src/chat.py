@@ -1,28 +1,24 @@
+from agents.google import GeminiAgent, GeminiModel
 from agents.cerebras import CerebrasAgent, CerebrasModel
 from models.structured_workflow import StructuredWorkflow
-from models.response import Response
-from utils.workflow import WorkflowUtils
+from orchestrators.chat_driven import ChatDrivenOrchestrator
 from utils.prompt import PromptUtils
-from tools.registry import ToolRegistry
+# from utils.workflow import WorkflowUtils
 
-# Initialize the agent
-cerebras = CerebrasAgent(model_name=CerebrasModel.GPT_OSS)
+# Initialize the orchestrator
+orchestrator = ChatDrivenOrchestrator({
+    "generator": CerebrasAgent(model_name=CerebrasModel.GPT_OSS),
+    "chatter": GeminiAgent(model_name=GeminiModel.GEMINI_2_5_FLASH),
+    "refiner": None,
+    "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
+})
 
-# Set up the prompts
-chat_prompt = PromptUtils.get_system_prompt("chat_clarification")
-chat_prompt_with_tools = PromptUtils.inject(chat_prompt, ToolRegistry.to_prompt_format())
+# Define the user prompt to use for workflow generation
 user_prompt = PromptUtils.get_user_prompt("weather_activity_plan")
-executor_system_prompt = PromptUtils.get_system_prompt("workflow_executor")
 
-# Generate the workflow (chat-based with clarification)
-chat_history = cerebras.chat(chat_prompt_with_tools, user_prompt, debug=False)
-workflow = cerebras.generate_workflow_from_chat(chat_history, chat_prompt, response_model=StructuredWorkflow, debug=False)
-WorkflowUtils.show(workflow)
-
-# Save the workflow and its visualization
-json_path = WorkflowUtils.save_json(workflow)
-html_path = WorkflowUtils.save_html(workflow)
+# Generate the workflow (chat-based with clarification) or load it from a JSON file
+# workflow = WorkflowUtils.load_json(json_path, StructuredWorkflow)
+workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow, save=False, debug=True)
 
 # Execute the workflow
-# workflow = WorkflowUtils.load_json(json_path, StructuredWorkflow)
-cerebras.execute_workflow(executor_system_prompt, workflow, response_model=Response, debug=True)
+orchestrator.run(workflow, debug=True)

@@ -1,21 +1,29 @@
 from pydantic import BaseModel
-from utils.workflow import WorkflowUtils
 from agents.base import AgentBase
+from orchestrators.base import OrchestratorBase
+from utils.workflow import WorkflowUtils
+from utils.prompt import PromptUtils
+from tools.registry import ToolRegistry
 
-class OneShotOrchestrator:
+class OneShotOrchestrator(OrchestratorBase):
 
-    def __init__(self, llm_agent: AgentBase):
-        super().__init__(llm_agent)
+    def __init__(self, agents: dict[str, AgentBase]):
+        super().__init__(agents)
     
-    def generate(self, system_prompt: str, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
+    def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
 
         if debug:
             print("Generating workflow with OneShotOrchestrator...")
-            print("System Prompt:", system_prompt)
             print("User Prompt:", user_prompt)
             input("Press Enter to continue or Ctrl+C to exit...")
 
-        workflow = self.llm_agent.generate_structured_content(system_prompt, user_prompt, response_model)
+        system_prompt = PromptUtils.get_system_prompt("workflow_generation")
+        system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format())
+
+        if not self.agents.get("generator"):
+            raise ValueError("Generator agent not found.")
+
+        workflow = self.agents.get("generator").generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
 
         if show:
             WorkflowUtils.show(workflow)

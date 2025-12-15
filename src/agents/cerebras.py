@@ -1,11 +1,11 @@
 import os
 import getpass
-import json
 
 from cerebras.cloud.sdk import Cerebras
+from types import SimpleNamespace
 from pydantic import BaseModel
 from enum import Enum
-from tools.registry import ToolRegistry
+from agents.base import AgentBase
 from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
@@ -20,180 +20,19 @@ class CerebrasModel(str, Enum):
     LLAMA_3_1 = "llama3.1-8b"
     QWEN_3 = "qwen-3-32b"
 
-class CerebrasAgent:
+class CerebrasAgent(AgentBase):
+
     def __init__(self, model_name: str = CerebrasModel.GPT_OSS):
         self.client = Cerebras()
         self.model_name = model_name
-    
-    def generate_workflow(self, system_prompt: str, user_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
-        """Generate a workflow in one-shot."""
 
-        if debug:
-            print("System Prompt:", system_prompt)
-            print("User Prompt:", user_prompt)
-            input("Press Enter to continue or Ctrl+C to exit...")
-        
+    def generate_content(self, system_prompt: str, user_prompt: str) -> str:
+        """Private method to call the LLM and get a text response."""
+
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
-        
-        return self._call_llm_structured(messages, response_model)
-
-    def chat(self, system_prompt: str, user_prompt: str, debug: bool = False):
-        """Chat using the Cerebras model with multi-turn conversation."""
-
-        ### Debug prints (same as your Gemini version)
-        if debug:
-            print("System Prompt:", system_prompt)
-            print("User Prompt:", user_prompt)
-            input("Press Enter to continue or Ctrl+C to exit...")
-
-        # Keep the full conversation history
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Workflow prompt is '{user_prompt}'"}
-        ]
-
-        # Send initial user message
-        try:
-            initial_text = self._call_llm(messages)
-            print("Initial reasoning:", initial_text, "\n")
-        except Exception as e:
-            raise RuntimeError(f"Chat message failed: {e}")
-
-        # Start interactive loop
-        while True:
-            user_input = input("Your message (type 'exit'): ")
-            if user_input.lower() == "exit":
-                break
-
-            # Append user message
-            messages.append({"role": "user", "content": user_input})
-            response = self._call_llm(messages)
-            print("Response:", response, "\n")
-
-            # Append model response to conversation history
-            messages.append({"role": "assistant", "content": response})
-        
-        return messages
-    
-    def generate_workflow_from_chat(self, messages: list, system_prompt: str, response_model: BaseModel, debug: bool = False) -> BaseModel:
-        """Generate a workflow from the chat history."""
-        
-        # Compile chat history into a single prompt
-        history_text = "\n".join(
-            f"{msg['role'].capitalize()}: {msg['content']}" for msg in messages
-        )
-        final_prompt = f"{system_prompt}\n\nChat History:\n{history_text}\n\nPlease provide the final workflow."
-
-        if debug:
-            print("System Prompt for final generation:", system_prompt)
-            print("Final Prompt:", final_prompt)
-            input("Press Enter to continue or Ctrl+C to exit...")
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": final_prompt}
-        ]
-
-        return self._call_llm_structured(messages, response_model)
-
-    def generate_workflow_from_workflow(self, system_prompt: str, workflow: BaseModel, response_model: BaseModel, debug: bool = False) -> BaseModel:
-        """Generate a workflow from an existing workflow JSON."""
-        
-        workflow_json = workflow.model_dump_json()
-
-        if debug:
-            print("System Prompt:", system_prompt)
-            print("Existing Workflow JSON:", workflow_json)
-            input("Press Enter to continue or Ctrl+C to exit...")
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": workflow_json}
-        ]
-
-        return self._call_llm_structured(messages, response_model)
-        
-    def execute_workflow(self, system_prompt: str, workflow: BaseModel, response_model: BaseModel, debug : bool = False):
-        """Execute the generated workflow."""
-        
-        step_results = {}
-        workflow_text = workflow.model_dump_json()
-        workflow_json = json.loads(workflow_text)
-
-        if debug:
-            print("System Prompt for final generation:", system_prompt)
-            print("Workflow JSON:", workflow_text)
-            input("Press Enter to continue or Ctrl+C to exit...")
-        
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Workflow to execute: \n\n{workflow_text}"}
-        ]
-
-        while True:
-            response: BaseModel = self._call_llm_structured(messages, response_model)
-
-            try:
-                payload = response.model_dump()
-            except Exception as e:
-                raise ValueError(f"Failed to parse step response: {e}")
-            
-            if debug:
-                print("Executor received payload:", json.dumps(payload, indent=2))
-                input("Press Enter to continue...")
-            
-            pstep = payload.get("step_id")
-            paction = payload.get("action")
-            for step in workflow_json["steps"]:
-                if step["id"] == pstep:
-                    break
-            pfinal = step["is_final"]
-
-            if pfinal:
-                print("\nFinal response from workflow execution:")
-                print(json.dumps(payload, indent=2))
-                break
-            elif paction == "call_tool":
-                tool_name = payload.get("tool_name")
-                parameters = {p["key"]: p["value"] for p in payload.get("tool_parameters", [])}
-
-                print(f"\nExecutor requests tool call for {pstep}: {tool_name} with {parameters}")
-                
-                tool = ToolRegistry.get(tool_name)
-                
-                try:
-                    results = tool.run(**parameters)
-                except Exception as e:
-                    raise RuntimeError(f"Tool {tool_name} execution failed: {e}")
-                
-                step_results[pstep] = results
-                messages.append({"role": "assistant", "content": json.dumps(payload)})
-                messages.append({"role": "system", "content": json.dumps({"tool_result": results, "state": step_results, "resume": True})})
-                if debug:
-                    print(f"Tool {tool_name} returned results: {results}")
-                    input("Press Enter to continue...")
-                continue
-            elif paction == "call_llm":
-                results = payload.get("llm_results")
-
-                print(f"\nExecutor received LLM action for {pstep} with results: {results}")
-
-                step_results[pstep] = results
-                messages.append({"role": "assistant", "content": json.dumps(payload)})
-                messages.append({"role": "system", "content": json.dumps({"state": step_results, "resume": True})})
-                if debug:
-                    input("Press Enter to continue...")
-                continue
-            else:
-                raise ValueError(f"Unknown step action: {paction}")
-        
-        print("Workflow execution completed.")
-            
-    def _call_llm(self, messages: list) -> str:
-        """Private method to call the LLM and get a text response."""
 
         response = self.client.chat.completions.create(
             model=self.model_name,
@@ -203,9 +42,14 @@ class CerebrasAgent:
 
         return response.choices[0].message.content
 
-    def _call_llm_structured(self, messages: list, response_model: BaseModel) -> BaseModel:
+    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
         """Private method to get the structured response from the model."""
         
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
@@ -219,11 +63,87 @@ class CerebrasAgent:
             }
         )
 
-        json_data = json.dumps(json.loads(response.choices[0].message.content))
-
         try:
-            return response_model.model_validate_json(json_data)
+            return response_model.model_validate_json(response.choices[0].message.content)
         except Exception as e:
             raise ValueError(f"Failed to parse response into {response_model.__name__}: {e}")
 
-        
+    def init_chat(self, system_prompt: str):
+
+        class Chat:
+            def __init__(self, client, model_name: str, system_prompt: str):
+                self.client = client
+                self.model_name = model_name
+                self.system_prompt = system_prompt
+                self.messages = [{"role": "system", "content": system_prompt}]
+            
+            def send_message(self, user_prompt: str) -> str:
+                """Send a message in chat and return the response text."""
+                
+                self.messages.append({"role": "user", "content": user_prompt})
+                
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=self.messages,
+                    stream=False
+                )
+                
+                assistant_message = response.choices[0].message.content
+                self.messages.append({"role": "assistant", "content": assistant_message})
+                
+                return SimpleNamespace(text=assistant_message)
+            
+            def get_history(self) -> list[dict]:
+                messages = []
+                for msg in self.messages:
+                    messages.append(SimpleNamespace(
+                        role=msg["role"],
+                        parts=[SimpleNamespace(text=msg["content"])]
+                    ))
+                return messages
+
+        return Chat(self.client, self.model_name, system_prompt)    
+
+    def init_structured_chat(self, system_prompt: str, response_model: BaseModel):
+
+        class StructuredChat:
+            def __init__(self, client, model_name: str, system_prompt: str, response_model: BaseModel):
+                self.client = client
+                self.model_name = model_name
+                self.system_prompt = system_prompt
+                self.response_model = response_model
+                self.messages = [{"role": "system", "content": system_prompt}]
+            
+            def send_message(self, user_prompt: str) -> BaseModel:
+                """Send a message in chat and return the response in JSON format."""
+
+                self.messages.append({"role": "user", "content": user_prompt})
+                
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=self.messages,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "structured_response_schema",
+                            "strict": True,
+                            "schema": self.response_model.model_json_schema()
+                        }
+                    }
+                )
+                
+                assistant_message = response.choices[0].message.content
+                self.messages.append({"role": "assistant", "content": assistant_message})
+                
+                return SimpleNamespace(text=assistant_message)
+
+            def get_history(self) -> list[dict]:
+                messages = []
+                for msg in self.messages:
+                    messages.append(SimpleNamespace(
+                        role=msg["role"],
+                        parts=[SimpleNamespace(text=msg["content"])]
+                    ))
+                return messages
+
+        return StructuredChat(self.client, self.model_name, system_prompt, response_model)    

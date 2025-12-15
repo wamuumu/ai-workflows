@@ -12,6 +12,7 @@ Hard requirements:
   - All parameter keys must match the tool's documented input keys.
 - For any step with action "call_llm", the step's parameters MUST be a key named "prompt" containing the text to send to the LLM.
 - When a step consumes output from an earlier step, reference values using the exact placeholder format {step_X.result_key} (for example: {step_1.output_url}) and ensure those referenced result keys exist in the referenced step.
+- If a previous clarification chat history with another LLM is provided, incorporate relevant parts of it into the workflow as needed.
 - Be precise and unambiguous. Do not use informal phrasing or leave behavior underspecified.
 
 Failure modes to avoid:
