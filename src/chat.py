@@ -9,7 +9,6 @@ from utils.prompt import PromptUtils
 orchestrator = ChatDrivenOrchestrator({
     "generator": CerebrasAgent(model_name=CerebrasModel.GPT_OSS),
     "chatter": GeminiAgent(model_name=GeminiModel.GEMINI_2_5_FLASH),
-    "refiner": None,
     "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
 })
 

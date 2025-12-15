@@ -8,7 +8,6 @@ from utils.prompt import PromptUtils
 # Initialize the orchestrator
 orchestrator = TwoStageOrchestrator({
     "generator": CerebrasAgent(model_name=CerebrasModel.GPT_OSS),
-    "chatter": None,
     "refiner": GeminiAgent(model_name=GeminiModel.GEMINI_2_5_FLASH),
     "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
 })

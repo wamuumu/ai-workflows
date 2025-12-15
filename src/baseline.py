@@ -8,10 +8,10 @@ from utils.prompt import PromptUtils
 # Intialize the orchestrator with the desired LLM agent
 orchestrator = OneShotOrchestrator({
     "generator": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3),
-    "chatter": None,
-    "refiner": None,
     "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
 })
+
+print(orchestrator.agents)
 
 # Define the user prompt to use for workflow generation
 user_prompt = PromptUtils.get_user_prompt("weather_activity_plan")

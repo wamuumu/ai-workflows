@@ -2,15 +2,25 @@ import json
 
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
+from typing import Optional
 from models.response import Response
 from agents.base import AgentBase
 from utils.prompt import PromptUtils
 from tools.registry import ToolRegistry
 
+class AgentSchema(BaseModel):
+    generator: Optional[AgentBase] = None
+    planner: Optional[AgentBase] = None
+    chatter: Optional[AgentBase] = None
+    refiner: Optional[AgentBase] = None
+    executor: Optional[AgentBase] = None
+
+    model_config = { "arbitrary_types_allowed": True }
+
 class OrchestratorBase(ABC):
 
     def __init__(self, agents: dict[str, AgentBase]):
-        self.agents = agents
+        self.agents = AgentSchema(**agents)
 
     @abstractmethod
     def generate(self, system_prompt: str, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
