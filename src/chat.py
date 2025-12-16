@@ -3,6 +3,7 @@ from agents.cerebras import CerebrasAgent, CerebrasModel
 from models.structured_workflow import StructuredWorkflow
 from orchestrators.chat_driven import ChatDrivenOrchestrator
 from utils.prompt import PromptUtils
+from utils.metric import MetricUtils
 # from utils.workflow import WorkflowUtils
 
 # Initialize the orchestrator
@@ -10,7 +11,7 @@ orchestrator = ChatDrivenOrchestrator({
     "generator": CerebrasAgent(model_name=CerebrasModel.GPT_OSS),
     "chatter": GeminiAgent(model_name=GeminiModel.GEMINI_2_5_FLASH),
     "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
-})
+}, skip_execution=True)
 
 # Define the user prompt to use for workflow generation
 user_prompt = PromptUtils.get_user_prompt("weather_activity_plan")
@@ -23,4 +24,4 @@ workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow,
 orchestrator.run(workflow, debug=True)
 
 # Display metrics
-orchestrator.display_metrics()
+MetricUtils.display_metrics()

@@ -6,12 +6,13 @@ from agents.base import AgentBase
 from orchestrators.base import OrchestratorBase
 from utils.workflow import WorkflowUtils
 from utils.prompt import PromptUtils
+from utils.metric import MetricUtils
 from tools.registry import ToolRegistry
 
 class HierarchicalOrchestrator(OrchestratorBase):
 
-    def __init__(self, agents: dict[str, AgentBase]):
-        super().__init__(agents)
+    def __init__(self, agents: dict[str, AgentBase], skip_execution: bool = False):
+        super().__init__(agents, skip_execution)
     
     def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
         
@@ -40,8 +41,7 @@ class HierarchicalOrchestrator(OrchestratorBase):
             start = time.time()
             plan = planner_chat.send_message(next_message).text
             end = time.time()
-            self.metrics.generation.time_taken += end - start
-            self.metrics.generation.number_of_calls += 1
+            MetricUtils.update_generation_metrics({"time_taken": end - start})
 
             if debug:
                 print("Generated Plan:", plan)
@@ -53,8 +53,7 @@ class HierarchicalOrchestrator(OrchestratorBase):
             start = time.time()
             sub_workflow = self.agents.generator.generate_structured_content(generation_prompt_with_tools, plan, response_model)
             end = time.time()
-            self.metrics.generation.time_taken += end - start
-            self.metrics.generation.number_of_calls += 1
+            MetricUtils.update_generation_metrics({"time_taken": end - start})
             
             sub_workflow_dict = sub_workflow.model_dump()
             fragments.append(sub_workflow_dict)

@@ -5,12 +5,13 @@ from agents.base import AgentBase
 from orchestrators.base import OrchestratorBase
 from utils.workflow import WorkflowUtils
 from utils.prompt import PromptUtils
+from utils.metric import MetricUtils
 from tools.registry import ToolRegistry
 
 class TwoStageOrchestrator(OrchestratorBase):
 
-    def __init__(self, agents: dict[str, AgentBase]):
-        super().__init__(agents)
+    def __init__(self, agents: dict[str, AgentBase], skip_execution: bool = False):
+        super().__init__(agents, skip_execution)
     
     def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
         
@@ -28,8 +29,7 @@ class TwoStageOrchestrator(OrchestratorBase):
         start = time.time()
         workflow = self.agents.generator.generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
         end = time.time()
-        self.metrics.generation.time_taken += end - start
-        self.metrics.generation.number_of_calls += 1
+        MetricUtils.update_generation_metrics({"time_taken": end - start})
 
         if show:
             WorkflowUtils.show(workflow)

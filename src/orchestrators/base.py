@@ -2,11 +2,12 @@ import json
 import time
 
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 from models.response import Response
 from agents.base import AgentBase
 from utils.prompt import PromptUtils
+from utils.metric import MetricUtils
 from tools.registry import ToolRegistry
 
 class AgentSchema(BaseModel):
@@ -18,20 +19,11 @@ class AgentSchema(BaseModel):
 
     model_config = { "arbitrary_types_allowed": True }
 
-class MetricSet(BaseModel):
-    time_taken: float = 0
-    number_of_calls: int = 0
-
-class MetricSchema(BaseModel):
-    generation: MetricSet = Field(default_factory=MetricSet)
-    execution: MetricSet = Field(default_factory=MetricSet)
-
 class OrchestratorBase(ABC):
 
-    def __init__(self, agents: dict[str, AgentBase]):
+    def __init__(self, agents: dict[str, AgentBase], skip_execution: bool):
         self.agents = AgentSchema(**agents)
-        self.metrics = MetricSchema()
-        self.skip_execution = True
+        self.skip_execution = skip_execution
 
     @abstractmethod
     def generate(self, system_prompt: str, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
@@ -58,8 +50,7 @@ class OrchestratorBase(ABC):
                 start = time.time()
                 response = chat_session.send_message(next_message).text
                 end = time.time()
-                self.metrics.generation.time_taken += end - start
-                self.metrics.generation.number_of_calls += 1
+                MetricUtils.update_chat_metrics({"time_taken": end - start})
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
@@ -90,8 +81,8 @@ class OrchestratorBase(ABC):
         start = time.time()
         workflow = self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
         end = time.time()
-        self.metrics.generation.time_taken += end - start
-        self.metrics.generation.number_of_calls += 1
+        MetricUtils.update_generation_metrics({"time_taken": end - start})
+            
         return workflow
 
     def refine(self, user_prompt: str, workflow: BaseModel, debug: bool = False) -> BaseModel:
@@ -113,8 +104,7 @@ class OrchestratorBase(ABC):
         start = time.time()
         workflow = self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
         end = time.time()
-        self.metrics.generation.time_taken += end - start
-        self.metrics.generation.number_of_calls += 1
+        MetricUtils.update_generation_metrics({"time_taken": end - start})
         return workflow
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
@@ -141,8 +131,7 @@ class OrchestratorBase(ABC):
                 start = time.time()
                 response = chat_session.send_message(next_message).text
                 end = time.time()
-                self.metrics.execution.time_taken += end - start
-                self.metrics.execution.number_of_calls += 1
+                MetricUtils.update_execution_metrics({"time_taken": end - start})
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
@@ -206,14 +195,3 @@ class OrchestratorBase(ABC):
                 raise ValueError(f"Unknown action '{p_action}' received during workflow execution.")
         
         print("\nWorkflow execution completed!")
-    
-    def display_metrics(self):
-        print("\nOrchestrator Metrics:")
-        dumped_metrics = self.metrics.model_dump()
-        for phase, metrics in dumped_metrics.items():
-            print(f"  {phase.capitalize()}:")
-            for metric_name, value in metrics.items():
-                if metric_name == "time_taken":
-                    print(f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
-                else:
-                    print(f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
