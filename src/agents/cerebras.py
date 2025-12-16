@@ -77,7 +77,7 @@ class CerebrasAgent(AgentBase):
                 self.system_prompt = system_prompt
                 self.messages = [{"role": "system", "content": system_prompt}]
             
-            def send_message(self, user_prompt: str) -> str:
+            def send_message(self, user_prompt: str):
                 """Send a message in chat and return the response text."""
                 
                 self.messages.append({"role": "user", "content": user_prompt})
@@ -114,7 +114,7 @@ class CerebrasAgent(AgentBase):
                 self.response_model = response_model
                 self.messages = [{"role": "system", "content": system_prompt}]
             
-            def send_message(self, user_prompt: str) -> BaseModel:
+            def send_message(self, user_prompt: str):
                 """Send a message in chat and return the response in JSON format."""
 
                 self.messages.append({"role": "user", "content": user_prompt})
