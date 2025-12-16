@@ -20,3 +20,6 @@ workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow,
 
 # Execute the workflow 
 orchestrator.run(workflow, debug=True)
+
+# Display metrics
+orchestrator.display_metrics()

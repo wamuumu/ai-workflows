@@ -78,6 +78,8 @@ If the input is a **planner-generated sub-task**:
   * Outputs will be consumed by later sub-tasks
 * Do **NOT** include global setup, teardown, or unrelated logic
 
+Unless explicitly instructed, the workflow MUST be linear. Conditional transitions are NOT allowed.
+
 Your output must still be a **complete, executable workflow fragment** for that sub-task.
 
 ---

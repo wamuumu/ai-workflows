@@ -1,7 +1,8 @@
 import json
+import time
 
 from abc import ABC, abstractmethod
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from models.response import Response
 from agents.base import AgentBase
@@ -17,10 +18,20 @@ class AgentSchema(BaseModel):
 
     model_config = { "arbitrary_types_allowed": True }
 
+class MetricSet(BaseModel):
+    time_taken: float = 0
+    number_of_calls: int = 0
+
+class MetricSchema(BaseModel):
+    generation: MetricSet = Field(default_factory=MetricSet)
+    execution: MetricSet = Field(default_factory=MetricSet)
+
 class OrchestratorBase(ABC):
 
     def __init__(self, agents: dict[str, AgentBase]):
         self.agents = AgentSchema(**agents)
+        self.metrics = MetricSchema()
+        self.skip_execution = True
 
     @abstractmethod
     def generate(self, system_prompt: str, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
@@ -44,7 +55,11 @@ class OrchestratorBase(ABC):
 
         while True:
             try:
+                start = time.time()
                 response = chat_session.send_message(next_message).text
+                end = time.time()
+                self.metrics.generation.time_taken += end - start
+                self.metrics.generation.number_of_calls += 1
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
@@ -72,7 +87,12 @@ class OrchestratorBase(ABC):
         if not self.agents.generator:
             raise ValueError("Generator agent not found.")
 
-        return self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
+        start = time.time()
+        workflow = self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
+        end = time.time()
+        self.metrics.generation.time_taken += end - start
+        self.metrics.generation.number_of_calls += 1
+        return workflow
 
     def refine(self, user_prompt: str, workflow: BaseModel, debug: bool = False) -> BaseModel:
 
@@ -90,9 +110,17 @@ class OrchestratorBase(ABC):
         if not self.agents.refiner:
             raise ValueError("Refiner agent not found.")
 
-        return self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
+        start = time.time()
+        workflow = self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
+        end = time.time()
+        self.metrics.generation.time_taken += end - start
+        self.metrics.generation.number_of_calls += 1
+        return workflow
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
+
+        if self.skip_execution:
+            return
 
         if debug:
             print("Running workflow...")
@@ -110,11 +138,16 @@ class OrchestratorBase(ABC):
 
         while True:
             try:
+                start = time.time()
                 response = chat_session.send_message(next_message).text
-                response_schema = Response.model_validate_json(response)
-                payload = response_schema.model_dump()
+                end = time.time()
+                self.metrics.execution.time_taken += end - start
+                self.metrics.execution.number_of_calls += 1
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
+            
+            response_schema = Response.model_validate_json(response)
+            payload = response_schema.model_dump()
             
             if debug:
                 print("Response received:", json.dumps(payload, indent=2), "\n")
@@ -173,3 +206,14 @@ class OrchestratorBase(ABC):
                 raise ValueError(f"Unknown action '{p_action}' received during workflow execution.")
         
         print("\nWorkflow execution completed!")
+    
+    def display_metrics(self):
+        print("\nOrchestrator Metrics:")
+        dumped_metrics = self.metrics.model_dump()
+        for phase, metrics in dumped_metrics.items():
+            print(f"  {phase.capitalize()}:")
+            for metric_name, value in metrics.items():
+                if metric_name == "time_taken":
+                    print(f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
+                else:
+                    print(f"    {metric_name.replace('_', ' ').capitalize()}: {value}")

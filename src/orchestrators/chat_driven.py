@@ -1,3 +1,5 @@
+import time 
+
 from pydantic import BaseModel
 from agents.base import AgentBase
 from orchestrators.base import OrchestratorBase
@@ -11,7 +13,12 @@ class ChatDrivenOrchestrator(OrchestratorBase):
     def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
         
         chat_history = self.chat_with_user(user_prompt, debug=debug)
+
+        start = time.time()
         workflow = self.generate_from_messages(chat_history, response_model, debug=debug)
+        end = time.time()
+        self.metrics.generation.time_taken += end - start
+        self.metrics.generation.number_of_calls += 1
 
         if show:
             WorkflowUtils.show(workflow)

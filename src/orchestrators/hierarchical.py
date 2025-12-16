@@ -1,4 +1,5 @@
 import json
+import time
 
 from pydantic import BaseModel
 from agents.base import AgentBase
@@ -31,39 +32,46 @@ class HierarchicalOrchestrator(OrchestratorBase):
             raise ValueError("Generator agent not found.")
         
         planner_chat = self.agents.planner.init_chat(plan_prompt_with_tools)
-        generator_chat = self.agents.generator.init_structured_chat(generation_prompt_with_tools, response_model)
         
         fragments = []
         next_message = user_prompt
         while True:
-
+            
+            start = time.time()
             plan = planner_chat.send_message(next_message).text
+            end = time.time()
+            self.metrics.generation.time_taken += end - start
+            self.metrics.generation.number_of_calls += 1
 
             if debug:
                 print("Generated Plan:", plan)
                 input("Press Enter to continue or Ctrl+C to exit...")
 
-            if "END" in plan:
+            if plan.strip() == "END":
                 break
-
-            sub_workflow = generator_chat.send_message(plan).text
-            sub_workflow = response_model.model_validate_json(sub_workflow)
-            sub_workflow = json.loads(sub_workflow.model_dump_json())
+            
+            start = time.time()
+            sub_workflow = self.agents.generator.generate_structured_content(generation_prompt_with_tools, plan, response_model)
+            end = time.time()
+            self.metrics.generation.time_taken += end - start
+            self.metrics.generation.number_of_calls += 1
+            
+            sub_workflow_dict = sub_workflow.model_dump()
+            fragments.append(sub_workflow_dict)
 
             if debug:
-                print("Generated Sub-Workflow:", json.dumps(sub_workflow, indent=2))
+                print("Generated Sub-Workflow:", json.dumps(sub_workflow_dict, indent=2))
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            fragments.append(sub_workflow)
-            next_message = f"Sub-task completed. The result is:\n{sub_workflow}\n"
+            next_message = f"Sub-task completed. Output produced:\n{json.dumps(sub_workflow_dict, indent=2)}\n"
         
         step_counter = 1
         wf_tmp = { "title": "test", "description": "test", "steps": [] }
         for fragment in fragments:
-            for step in fragment["steps"]:
+            for step in fragment.get("steps", []):
                 step["id"] = f"step_{step_counter}"
                 step_counter += 1
-            wf_tmp["steps"].extend(fragment["steps"])
+            wf_tmp["steps"].extend(fragment.get("steps", []))
         
         workflow = response_model.model_validate(wf_tmp)
 

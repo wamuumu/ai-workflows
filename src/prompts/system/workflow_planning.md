@@ -44,6 +44,7 @@ You **MUST**:
 
 You **MUST NOT**:
 
+* Tell the executor LLM tasks that were already handled in a prior sub-task
 * Perform execution planning or workflow construction
 * Specify concrete tools, APIs, parameters, schemas, or step-level logic
 * Provide full instructions or tutorials for generating the workflow
@@ -55,12 +56,13 @@ You **MUST NOT**:
 
 ## **Sub-Task Granularity Guidelines**
 
-Each sub-task must:
+Each sub-task MUST:
+- Be linear
+- Have no conditional branching
+- Not include decision-making and execution together
+- Not repeat responsibilities of previous sub-tasks
 
-* Represent a **meaningful macro-phase**, not an atomic action
-* Be defined by **intent, scope, and outcome**, not implementation details
-* Be sufficiently scoped to justify an independent workflow fragment
-* Be as **self-contained and linear** as possible
+If a decision is required, emit a sub-task whose ONLY purpose is to compute and expose that decision.ç
 
 Avoid:
 

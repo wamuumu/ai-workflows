@@ -11,8 +11,6 @@ orchestrator = OneShotOrchestrator({
     "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
 })
 
-print(orchestrator.agents)
-
 # Define the user prompt to use for workflow generation
 user_prompt = PromptUtils.get_user_prompt("weather_activity_plan")
 
@@ -22,3 +20,6 @@ workflow = orchestrator.generate(user_prompt, response_model=LinearWorkflow, sav
 
 # Execute the workflow 
 orchestrator.run(workflow, debug=True)
+
+# Display metrics
+orchestrator.display_metrics()
