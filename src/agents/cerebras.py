@@ -1,11 +1,13 @@
 import os
 import getpass
+import time
 
 from cerebras.cloud.sdk import Cerebras
 from types import SimpleNamespace
 from pydantic import BaseModel
 from enum import Enum
 from agents.base import AgentBase
+from utils.metric import MetricUtils
 from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
@@ -34,11 +36,14 @@ class CerebrasAgent(AgentBase):
             {"role": "user", "content": user_prompt}
         ]
 
+        start = time.time()
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
             stream=False
         )
+        end = time.time()
+        MetricUtils.update("generation", start, end, response.usage.total_tokens)
 
         return response.choices[0].message.content
 
@@ -50,6 +55,7 @@ class CerebrasAgent(AgentBase):
             {"role": "user", "content": user_prompt}
         ]
 
+        start = time.time()
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
@@ -62,6 +68,8 @@ class CerebrasAgent(AgentBase):
                 }
             }
         )
+        end = time.time()
+        MetricUtils.update("generation", start, end, response.usage.total_tokens)
 
         try:
             return response_model.model_validate_json(response.choices[0].message.content)
@@ -91,7 +99,7 @@ class CerebrasAgent(AgentBase):
                 assistant_message = response.choices[0].message.content
                 self.messages.append({"role": "assistant", "content": assistant_message})
                 
-                return SimpleNamespace(text=assistant_message)
+                return SimpleNamespace(text=assistant_message, usage_metadata=SimpleNamespace(total_token_count=response.usage.total_tokens))
             
             def get_history(self) -> list[dict]:
                 messages = []
@@ -135,7 +143,7 @@ class CerebrasAgent(AgentBase):
                 assistant_message = response.choices[0].message.content
                 self.messages.append({"role": "assistant", "content": assistant_message})
                 
-                return SimpleNamespace(text=assistant_message)
+                return SimpleNamespace(text=assistant_message, usage_metadata=SimpleNamespace(total_token_count=response.usage.total_tokens))
 
             def get_history(self) -> list[dict]:
                 messages = []

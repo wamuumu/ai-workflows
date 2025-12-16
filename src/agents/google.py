@@ -1,5 +1,6 @@
 import os
 import getpass
+import time
 
 from google.genai import Client
 from google.genai.types import GenerateContentConfig
@@ -7,6 +8,7 @@ from google.genai.chats import Chat
 from pydantic import BaseModel
 from enum import Enum
 from agents.base import AgentBase
+from utils.metric import MetricUtils
 from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
@@ -28,6 +30,7 @@ class GeminiAgent(AgentBase):
 
     def generate_content(self, system_prompt: str, user_prompt: str) -> str:
         
+        start = time.time()
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=user_prompt,
@@ -35,11 +38,14 @@ class GeminiAgent(AgentBase):
                 system_instruction=system_prompt
             )
         )
+        end = time.time()
+        MetricUtils.update("generation", start, end, response.usage_metadata.total_token_count)
 
         return response.text
             
     def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
 
+        start = time.time()
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=user_prompt,
@@ -49,6 +55,8 @@ class GeminiAgent(AgentBase):
                 response_schema=response_model
             )
         )
+        end = time.time()
+        MetricUtils.update("generation", start, end, response.usage_metadata.total_token_count)
 
         try:
             return response_model.model_validate_json(response.text)

@@ -39,10 +39,11 @@ class HierarchicalOrchestrator(OrchestratorBase):
         while True:
             
             start = time.time()
-            plan = planner_chat.send_message(next_message).text
+            response = planner_chat.send_message(next_message)
             end = time.time()
-            MetricUtils.update_generation_metrics({"time_taken": end - start})
+            MetricUtils.update_call_metrics("generation", start, end, response.usage_metadata.total_token_count)
 
+            plan = response.text
             if debug:
                 print("Generated Plan:", plan)
                 input("Press Enter to continue or Ctrl+C to exit...")
@@ -50,11 +51,7 @@ class HierarchicalOrchestrator(OrchestratorBase):
             if plan.strip() == "END":
                 break
             
-            start = time.time()
             sub_workflow = self.agents.generator.generate_structured_content(generation_prompt_with_tools, plan, response_model)
-            end = time.time()
-            MetricUtils.update_generation_metrics({"time_taken": end - start})
-            
             sub_workflow_dict = sub_workflow.model_dump()
             fragments.append(sub_workflow_dict)
 

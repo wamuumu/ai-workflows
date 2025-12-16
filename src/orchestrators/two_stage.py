@@ -1,11 +1,8 @@
-import time
-
 from pydantic import BaseModel
 from agents.base import AgentBase
 from orchestrators.base import OrchestratorBase
 from utils.workflow import WorkflowUtils
 from utils.prompt import PromptUtils
-from utils.metric import MetricUtils
 from tools.registry import ToolRegistry
 
 class TwoStageOrchestrator(OrchestratorBase):
@@ -26,10 +23,7 @@ class TwoStageOrchestrator(OrchestratorBase):
         if not self.agents.generator:
             raise ValueError("Generator agent not found.")
 
-        start = time.time()
         workflow = self.agents.generator.generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
-        end = time.time()
-        MetricUtils.update_generation_metrics({"time_taken": end - start})
 
         if show:
             WorkflowUtils.show(workflow)

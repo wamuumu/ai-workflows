@@ -48,13 +48,13 @@ class OrchestratorBase(ABC):
         while True:
             try:
                 start = time.time()
-                response = chat_session.send_message(next_message).text
+                response = chat_session.send_message(next_message)
                 end = time.time()
-                MetricUtils.update_chat_metrics({"time_taken": end - start})
+                MetricUtils.update("chat", start, end, response.usage_metadata.total_token_count)
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
-            print(f"\nLLM: {response}\n")
+            print(f"\nLLM: {response.text}\n")
             
             next_message = input("User: ")
             if next_message.lower() in ["exit", "quit", "q"]:
@@ -78,12 +78,7 @@ class OrchestratorBase(ABC):
         if not self.agents.generator:
             raise ValueError("Generator agent not found.")
 
-        start = time.time()
-        workflow = self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
-        end = time.time()
-        MetricUtils.update_generation_metrics({"time_taken": end - start})
-            
-        return workflow
+        return self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
 
     def refine(self, user_prompt: str, workflow: BaseModel, debug: bool = False) -> BaseModel:
 
@@ -100,12 +95,8 @@ class OrchestratorBase(ABC):
 
         if not self.agents.refiner:
             raise ValueError("Refiner agent not found.")
-
-        start = time.time()
-        workflow = self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
-        end = time.time()
-        MetricUtils.update_generation_metrics({"time_taken": end - start})
-        return workflow
+        
+        return self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
 
@@ -129,13 +120,13 @@ class OrchestratorBase(ABC):
         while True:
             try:
                 start = time.time()
-                response = chat_session.send_message(next_message).text
+                response = chat_session.send_message(next_message)
                 end = time.time()
-                MetricUtils.update_execution_metrics({"time_taken": end - start})
+                MetricUtils.update("execution", start, end, response.usage_metadata.total_token_count)
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
-            response_schema = Response.model_validate_json(response)
+            response_schema = Response.model_validate_json(response.text)
             payload = response_schema.model_dump()
             
             if debug:

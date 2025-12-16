@@ -23,4 +23,4 @@ workflow = orchestrator.generate(user_prompt, response_model=LinearWorkflow, sav
 orchestrator.run(workflow, debug=True)
 
 # Display metrics
-MetricUtils.display_metrics()
+MetricUtils.display()

@@ -8,7 +8,7 @@ from utils.metric import MetricUtils
 
 # Initialize the orchestrator
 orchestrator = ChatDrivenOrchestrator({
-    "generator": CerebrasAgent(model_name=CerebrasModel.GPT_OSS),
+    "generator": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3),
     "chatter": GeminiAgent(model_name=GeminiModel.GEMINI_2_5_FLASH),
     "executor": CerebrasAgent(model_name=CerebrasModel.LLAMA_3_3)
 }, skip_execution=True)
@@ -24,4 +24,4 @@ workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow,
 orchestrator.run(workflow, debug=True)
 
 # Display metrics
-MetricUtils.display_metrics()
+MetricUtils.display()

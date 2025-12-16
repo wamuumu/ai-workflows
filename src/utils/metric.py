@@ -2,7 +2,8 @@ from pydantic import BaseModel, Field
 
 class MetricSet(BaseModel):
     time_taken: float = 0
-    number_of_calls: int = 0
+    number_of_calls: int = 0 
+    total_tokens: int = 0 # input + output tokens
 
 class MetricSchema(BaseModel):
     generation: MetricSet = Field(default_factory=MetricSet)
@@ -14,22 +15,20 @@ class MetricUtils:
     _metrics: MetricSchema = MetricSchema() 
 
     @classmethod
-    def update_generation_metrics(cls, kwargs) -> None:
-        cls._metrics.generation.time_taken += kwargs.get("time_taken", 0)
-        cls._metrics.generation.number_of_calls += 1
+    def update(cls, category: str, start_time: float, end_time: float, tokens: int) -> None:
 
-    @classmethod
-    def update_chat_metrics(cls, kwargs) -> None:
-        cls._metrics.chat.time_taken += kwargs.get("time_taken", 0)
-        cls._metrics.chat.number_of_calls += 1
+        fields = MetricSchema.model_fields
+
+        if category not in fields:
+            raise ValueError(f"Invalid metric type: {category}. Valid types are: {list(fields.keys())}")
+        
+        metric_set: MetricSet = getattr(cls._metrics, category)
+        metric_set.time_taken += end_time - start_time
+        metric_set.number_of_calls += 1
+        metric_set.total_tokens += tokens
     
     @classmethod
-    def update_execution_metrics(cls, kwargs) -> None:
-        cls._metrics.execution.time_taken += kwargs.get("time_taken", 0)
-        cls._metrics.execution.number_of_calls += 1
-    
-    @classmethod
-    def display_metrics(cls) -> None:
+    def display(cls) -> None:
         print("\nOrchestrator Metrics:")
         dumped_metrics = cls._metrics.model_dump()
         for phase, metrics in dumped_metrics.items():

@@ -24,4 +24,4 @@ workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow,
 orchestrator.run(workflow, debug=True)
 
 # Display metrics
-MetricUtils.display_metrics()
+MetricUtils.display()
