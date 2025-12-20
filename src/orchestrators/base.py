@@ -12,6 +12,7 @@ from tools.registry import ToolRegistry
 
 class AgentSchema(BaseModel):
     generator: Optional[AgentBase] = None
+    discriminator: Optional[AgentBase] = None
     planner: Optional[AgentBase] = None
     chatter: Optional[AgentBase] = None
     refiner: Optional[AgentBase] = None

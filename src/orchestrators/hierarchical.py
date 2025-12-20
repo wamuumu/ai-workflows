@@ -41,7 +41,7 @@ class HierarchicalOrchestrator(OrchestratorBase):
             start = time.time()
             response = planner_chat.send_message(next_message)
             end = time.time()
-            MetricUtils.update_call_metrics("generation", start, end, response.usage_metadata.total_token_count)
+            MetricUtils.update("generation", start, end, response.usage_metadata.total_token_count)
 
             plan = response.text
             if debug:
