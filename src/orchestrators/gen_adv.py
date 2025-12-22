@@ -62,7 +62,7 @@ class GenerativeAdversarialOrchestrator(OrchestratorBase):
                 print("Discriminator Critique:", critique_text)
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            if "END" in critique_text.upper().strip():
+            if "END_CRITIQUE" in critique_text.upper().strip():
                 break
             
             next_message = f"Please revise the workflow based on the following critique:\n{critique_text}\n"

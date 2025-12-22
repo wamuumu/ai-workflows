@@ -66,8 +66,8 @@ Each reported issue MUST include:
 - Step(s) involved (e.g., "step_3"), or "Global" if not step-specific
 - Suggested Fix (concise recommendation for correction)
 
-If and ONLY if no issues are found, return exactly:
-END
+If and ONLY if no issues are found, return exactly in PLAIN TEXT:
+END_CRITIQUE
 
-Do NOT include the word "END" in any other context.
+Do NOT include the word "END_CRITIQUE" in any other context.
 Do NOT include any explanatory text outside the report.

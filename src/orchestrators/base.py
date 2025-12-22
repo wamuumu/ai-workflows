@@ -56,10 +56,11 @@ class OrchestratorBase(ABC):
                 raise RuntimeError(f"Chat message failed: {e}")
             
             print(f"\nLLM: {response.text}\n")
+
+            if "END_CLARIFICATIONS" in response.text.upper().strip():
+                break
             
             next_message = input("User: ")
-            if next_message.lower() in ["exit", "quit", "q"]:
-                break
         
         return chat_session.get_history()
 
