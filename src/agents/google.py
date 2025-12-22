@@ -2,14 +2,13 @@ import os
 import getpass
 import time
 
-from google.genai import Client
-from google.genai.types import GenerateContentConfig
-from google.genai.chats import Chat
-from pydantic import BaseModel
 from enum import Enum
+from pydantic import BaseModel
+from google.genai import Client
+from dotenv import load_dotenv
+from google.genai.types import GenerateContentConfig
 from agents.base import AgentBase
 from utils.metric import MetricUtils
-from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
 load_dotenv()
@@ -63,22 +62,60 @@ class GeminiAgent(AgentBase):
         except Exception as e:
             raise ValueError(f"Failed to parse response into {response_model.__name__}: {e}")
         
-    def init_chat(self, system_prompt: str) -> Chat:
-        
-        return self.client.chats.create(
-            model=self.model_name,
-            config=GenerateContentConfig(
-                system_instruction=system_prompt
-            )
-        )
+    def init_chat(self, system_prompt: str):
 
-    def init_structured_chat(self, system_prompt: str, response_model: BaseModel) -> Chat:
+        class Chat:
+            def __init__(self, client: Client, model_name: str, system_prompt: str):
+                self.chat_instance = client.chats.create(
+                    model=model_name,
+                    config=GenerateContentConfig(
+                        system_instruction=system_prompt
+                    )
+                )
+
+            def send_message(self, message: str, category: str = "chat") -> str:
+                """Send a message in chat and return the response text."""
+                
+                start = time.time()
+                response = self.chat_instance.send_message(message)
+                end = time.time()
+                MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
+                
+                return response.text
+
+            def get_history(self):
+                return self.chat_instance.get_history()
+            
+        return Chat(self.client, self.model_name, system_prompt)  
+
+    def init_structured_chat(self, system_prompt: str, response_model: BaseModel):
+
+        class StructuredChat:
+            def __init__(self, client: Client, model_name: str, system_prompt: str, response_model: BaseModel):
+                self.chat_instance = client.chats.create(
+                    model=model_name,
+                    config=GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        response_mime_type='application/json',
+                        response_schema=response_model
+                    )
+                )
+                self.response_model = response_model
+
+            def send_message(self, message: str, category: str = "chat") -> BaseModel:
+                """Send a message in chat and return the response text."""
+                
+                start = time.time()
+                response = self.chat_instance.send_message(message)
+                end = time.time()
+                MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
+                
+                try:
+                    return self.response_model.model_validate_json(response.text)
+                except Exception as e:
+                    raise ValueError(f"Failed to parse response into {self.response_model.__name__}: {e}")
+
+            def get_history(self):
+                return self.chat_instance.get_history()
         
-        return self.client.chats.create(
-            model=self.model_name,
-            config=GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type='application/json',
-                response_schema=response_model
-            )
-        )
+        return StructuredChat(self.client, self.model_name, system_prompt, response_model)

@@ -1,134 +1,83 @@
 import json
-import time
 
-from abc import ABC, abstractmethod
 from pydantic import BaseModel
-from typing import Optional
-from models.response import Response
+from typing import Optional, Type
 from agents.base import AgentBase
-from utils.prompt import PromptUtils
-from utils.metric import MetricUtils
+from agents.google import GeminiAgent
+from agents.cerebras import CerebrasAgent, CerebrasModel
+from features.base import FeatureBase
+from models.execution_response import ExecutionResponse
+from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
+from utils.prompt import PromptUtils
 
 class AgentSchema(BaseModel):
-    generator: Optional[AgentBase] = None
-    discriminator: Optional[AgentBase] = None
-    planner: Optional[AgentBase] = None
-    chatter: Optional[AgentBase] = None
-    refiner: Optional[AgentBase] = None
-    executor: Optional[AgentBase] = None
+    generator: Optional[AgentBase] = CerebrasAgent()
+    discriminator: Optional[AgentBase] = GeminiAgent()
+    # planner: Optional[AgentBase] = None
+    chatter: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
+    refiner: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
+    executor: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
 
     model_config = { "arbitrary_types_allowed": True }
 
-class OrchestratorBase(ABC):
+class Context(BaseModel):
+    # Input context for orchestrator operations
+    agents: AgentSchema
+    response_model: Type[BaseModel]
+    prompt: str
 
-    def __init__(self, agents: dict[str, AgentBase], skip_execution: bool):
+    # Output context 
+    workflow: Optional[BaseModel] = None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+class ConfigurableOrchestrator:
+
+    def __init__(self, strategy: StrategyBase, agents: dict[str, AgentBase] = {}, features: list[FeatureBase] = []):
         self.agents = AgentSchema(**agents)
-        self.skip_execution = skip_execution
-
-    @abstractmethod
-    def generate(self, system_prompt: str, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
-        pass
-
-    def chat_with_user(self, user_prompt: str, debug: bool = False) -> str:
-
-        if debug:
-            print("Chatting with user...")
-            print("User Prompt:", user_prompt)
-            input("Press Enter to continue or Ctrl+C to exit...")
-
-        chat_prompt = PromptUtils.get_system_prompt("chat_clarification")
-        chat_prompt_with_tools = PromptUtils.inject(chat_prompt, ToolRegistry.to_prompt_format())
-
-        if not self.agents.chatter:
-            raise ValueError("Chatter agent not found.")
-
-        chat_session = self.agents.chatter.init_chat(chat_prompt_with_tools)
-        next_message = user_prompt
-
-        while True:
-            try:
-                start = time.time()
-                response = chat_session.send_message(next_message)
-                end = time.time()
-                MetricUtils.update("chat", start, end, response.usage_metadata.total_token_count)
-            except Exception as e:
-                raise RuntimeError(f"Chat message failed: {e}")
-            
-            print(f"\nLLM: {response.text}\n")
-
-            if "END_CLARIFICATIONS" in response.text.upper().strip():
-                break
-            
-            next_message = input("User: ")
+        self.strategy = strategy
+        self.pre_features = [f for f in features if f.get_phase() == "pre"]
+        self.post_features = [f for f in features if f.get_phase() == "post"]
+    
+    def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
         
-        return chat_session.get_history()
-
-    def generate_from_messages(self, messages, response_model: BaseModel, debug: bool = False) -> BaseModel:
+        context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt)
         
-        user_prompt = messages[1].parts[0].text
-        history = "\n".join([f"{msg.role.capitalize()}: {msg.parts[0].text}" for msg in messages[2:]])  # Skip system prompt and first user message
+        for feature in self.pre_features:
+            context = feature.apply(context, debug)
 
-        if debug:
-            print("Generating workflow from chat messages...")
-            print("Chat History:", history)
-            input("Press Enter to continue or Ctrl+C to exit...")
+        context.workflow = self.strategy.generate(context, save, show, debug)
 
-        system_prompt = PromptUtils.get_system_prompt("workflow_generation")
-        system_prompt_with_tools_and_chat = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(), chat_history=history)
+        for feature in self.post_features:
+            context = feature.apply(context, debug)
 
-        if not self.agents.generator:
-            raise ValueError("Generator agent not found.")
-
-        return self.agents.generator.generate_structured_content(system_prompt_with_tools_and_chat, user_prompt, response_model)
-
-    def refine(self, user_prompt: str, workflow: BaseModel, debug: bool = False) -> BaseModel:
-
-        workflow_json = workflow.model_dump_json()
-
-        if debug:
-            print("Refining workflow...")
-            print("User Prompt:", user_prompt)
-            print("Workflow to refine:", workflow_json)
-            input("Press Enter to continue or Ctrl+C to exit...")
-
-        refine_prompt = PromptUtils.get_system_prompt("workflow_refinement")
-        refine_prompt_with_tools = PromptUtils.inject(refine_prompt, ToolRegistry.to_prompt_format(), original_user_prompt=user_prompt)
-
-        if not self.agents.refiner:
-            raise ValueError("Refiner agent not found.")
-        
-        return self.agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
+        return context.workflow
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
-
-        if self.skip_execution:
-            return
 
         if debug:
             print("Running workflow...")
             input("Press Enter to continue or Ctrl+C to exit...")
 
         step_results = {}
-        workflow_json = json.loads(workflow.model_dump_json())
+        workflow_json = workflow.model_dump_json()
+        workflow_obj = json.loads(workflow_json)
         execution_prompt = PromptUtils.get_system_prompt("workflow_execution")
 
         if not self.agents.executor:
             raise ValueError("Executor agent not found.")
 
-        chat_session = self.agents.executor.init_structured_chat(execution_prompt, Response)
+        chat_session = self.agents.executor.init_structured_chat(execution_prompt, ExecutionResponse)
         next_message = workflow.model_dump_json()
 
         while True:
             try:
-                start = time.time()
-                response = chat_session.send_message(next_message)
-                end = time.time()
-                MetricUtils.update("execution", start, end, response.usage_metadata.total_token_count)
+                response = chat_session.send_message(next_message, category="execution")
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
-            response_schema = Response.model_validate_json(response.text)
+            response_schema = ExecutionResponse.model_validate_json(response)
             payload = response_schema.model_dump()
             
             if debug:
@@ -137,7 +86,7 @@ class OrchestratorBase(ABC):
             
             p_step = payload.get("step_id")
             p_action = payload.get("action")
-            current_step = next((step for step in workflow_json["steps"] if step["id"] == p_step), None)
+            current_step = next((step for step in workflow_obj["steps"] if step["id"] == p_step), None)
 
             if not current_step:
                 raise ValueError(f"Step ID '{p_step}' not found in workflow.")
@@ -155,17 +104,20 @@ class OrchestratorBase(ABC):
                 
                 tool = ToolRegistry.get(tool_name)
                 
+                retry = False
                 try:
                     results = tool.run(**tool_params)
                 except Exception as e:
-                    raise RuntimeError(f"Tool '{tool_name}' execution failed: {e}")
+                    results = { "error": str(e) }
+                    retry = True
                 
                 step_results[p_step] = results
                 next_message = json.dumps({
                     "step_id": p_step,
                     "tool_results": results,
                     "state": step_results,
-                    "resume": True
+                    "resume": True,
+                    "retry": retry
                 })
                 
                 if debug:

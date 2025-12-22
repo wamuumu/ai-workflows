@@ -1,4 +1,4 @@
-from models.structured_workflow import StructuredWorkflow
+from models import LinearWorkflow, StructuredWorkflow
 from utils.workflow import WorkflowUtils
 from utils.metric import MetricUtils
 

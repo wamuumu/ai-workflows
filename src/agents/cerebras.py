@@ -2,13 +2,13 @@ import os
 import getpass
 import time
 
-from cerebras.cloud.sdk import Cerebras
-from types import SimpleNamespace
-from pydantic import BaseModel
 from enum import Enum
+from pydantic import BaseModel
+from types import SimpleNamespace
+from dotenv import load_dotenv
+from cerebras.cloud.sdk import Cerebras
 from agents.base import AgentBase
 from utils.metric import MetricUtils
-from dotenv import load_dotenv
 
 # Load API key from environment or prompt user
 load_dotenv()
@@ -79,27 +79,30 @@ class CerebrasAgent(AgentBase):
     def init_chat(self, system_prompt: str):
 
         class Chat:
-            def __init__(self, client, model_name: str, system_prompt: str):
+            def __init__(self, client: Cerebras, model_name: str, system_prompt: str):
                 self.client = client
                 self.model_name = model_name
                 self.system_prompt = system_prompt
                 self.messages = [{"role": "system", "content": system_prompt}]
             
-            def send_message(self, user_prompt: str):
+            def send_message(self, message: str, category: str = "chat") -> str:
                 """Send a message in chat and return the response text."""
                 
-                self.messages.append({"role": "user", "content": user_prompt})
+                self.messages.append({"role": "user", "content": message})
                 
+                start = time.time()
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=self.messages,
                     stream=False
                 )
+                end = time.time()
+                MetricUtils.update(category, start, end, response.usage.total_tokens)
                 
                 assistant_message = response.choices[0].message.content
                 self.messages.append({"role": "assistant", "content": assistant_message})
                 
-                return SimpleNamespace(text=assistant_message, usage_metadata=SimpleNamespace(total_token_count=response.usage.total_tokens))
+                return assistant_message
             
             def get_history(self) -> list[dict]:
                 messages = []
@@ -115,18 +118,19 @@ class CerebrasAgent(AgentBase):
     def init_structured_chat(self, system_prompt: str, response_model: BaseModel):
 
         class StructuredChat:
-            def __init__(self, client, model_name: str, system_prompt: str, response_model: BaseModel):
+            def __init__(self, client: Cerebras, model_name: str, system_prompt: str, response_model: BaseModel):
                 self.client = client
                 self.model_name = model_name
                 self.system_prompt = system_prompt
                 self.response_model = response_model
                 self.messages = [{"role": "system", "content": system_prompt}]
             
-            def send_message(self, user_prompt: str):
+            def send_message(self, message: str, category: str = "chat") -> BaseModel:
                 """Send a message in chat and return the response in JSON format."""
 
-                self.messages.append({"role": "user", "content": user_prompt})
+                self.messages.append({"role": "user", "content": message})
                 
+                start = time.time()
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=self.messages,
@@ -139,11 +143,16 @@ class CerebrasAgent(AgentBase):
                         }
                     }
                 )
+                end = time.time()
+                MetricUtils.update(category, start, end, response.usage.total_tokens)
                 
                 assistant_message = response.choices[0].message.content
                 self.messages.append({"role": "assistant", "content": assistant_message})
                 
-                return SimpleNamespace(text=assistant_message, usage_metadata=SimpleNamespace(total_token_count=response.usage.total_tokens))
+                try:
+                    return self.response_model.model_validate_json(assistant_message)
+                except Exception as e:
+                    raise ValueError(f"Failed to parse response into {self.response_model.__name__}: {e}")
 
             def get_history(self) -> list[dict]:
                 messages = []

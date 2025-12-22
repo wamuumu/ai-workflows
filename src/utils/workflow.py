@@ -2,9 +2,9 @@ import os
 import html
 import uuid
 
-from pydantic import BaseModel
 from pyvis.network import Network
 from datetime import datetime
+from pydantic import BaseModel
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 WORKFLOWS = os.path.join(ROOT, "data", "workflows")
@@ -16,12 +16,12 @@ class WorkflowUtils:
     _run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     @classmethod
-    def show(cls, workflow: BaseModel):
+    def show(cls, workflow: BaseModel) -> None:
         """Display the workflow structure."""
         print(workflow.model_dump_json(indent=2))
 
     @classmethod
-    def save_json(cls, workflow: BaseModel):
+    def save_json(cls, workflow: BaseModel) -> str:
         """Save the workflow as a JSON file."""
         
         workflow_json = workflow.model_dump_json(indent=2)
@@ -49,7 +49,7 @@ class WorkflowUtils:
         return model.model_validate_json(workflow_data)
 
     @classmethod
-    def save_html(cls, workflow: BaseModel):
+    def save_html(cls, workflow: BaseModel) -> str:
         """Create a visual representation of the workflow using pyvis."""
         
         workflow_json = workflow.model_dump()

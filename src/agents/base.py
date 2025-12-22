@@ -1,6 +1,14 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
-from typing import Any
+from typing import Protocol
+
+class Chat(Protocol):
+    def send_message(self, message: str, category: str = "chat") -> str: pass
+    def get_history(self) -> list[dict]: pass
+
+class StructuredChat(Protocol):
+    def send_message(self, message: str, category: str = "chat") -> BaseModel: pass
+    def get_history(self) -> list[dict]: pass
 
 class AgentBase(ABC):
     
@@ -15,11 +23,11 @@ class AgentBase(ABC):
         pass
 
     @abstractmethod
-    def init_chat(self, system_prompt: str) -> Any:
+    def init_chat(self, system_prompt: str) -> Chat:
         """Initialize and return a chat session object."""
         pass
 
     @abstractmethod
-    def init_structured_chat(self, system_prompt: str, response_model: BaseModel) -> Any:
+    def init_structured_chat(self, system_prompt: str, response_model: BaseModel) -> StructuredChat:
         """Initialize and return a chat session object."""
         pass

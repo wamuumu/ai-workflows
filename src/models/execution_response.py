@@ -6,8 +6,8 @@ class StepObject(BaseModel):
     key: str = Field(..., description="The parameter key")
     value: Union[str, int, float, bool] = Field(..., description="The parameter value")
 
-class Response(BaseModel):
-    """A response for a single step in a structured workflow."""
+class ExecutionResponse(BaseModel):
+    """A model representing the response from executing a step in a workflow."""
     step_id: str = Field(..., description="Unique identifier for the step")
     action: Literal["call_tool", "call_llm"] = Field(..., description="The action type for this step")
     tool_name: Optional[str] = Field(None, description="Name of the tool to call, ONLY if action is 'call_tool'")

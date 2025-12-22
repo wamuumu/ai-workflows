@@ -9,7 +9,7 @@ USER_PROMPTS_DIR = os.path.join(ROOT, "prompts", "user")
 class PromptUtils:
     """Utility class for managing prompts."""
 
-    _system_promtps: dict[str, str] = {}
+    _system_prompts: dict[str, str] = {}
     _user_prompts: dict[str, str] = {}
 
     @classmethod
@@ -28,7 +28,7 @@ class PromptUtils:
     @classmethod
     def _ensure_loaded(cls):
         """Load prompts if not already loaded."""
-        if not cls._system_promtps:
+        if not cls._system_prompts:
             cls._system_prompts = cls._load_prompts(Path(SYSTEM_PROMPTS_DIR))
         if not cls._user_prompts:
             cls._user_prompts = cls._load_prompts(Path(USER_PROMPTS_DIR))

@@ -48,13 +48,18 @@ class MetricUtils:
                 else:
                     print(f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
     
+    @classmethod
+    def reset(cls) -> None:
+        """Reset metrics for a new run."""
+        cls._metrics = MetricSchema()
+    
 
     # ============================ Evaluation Metrics ============================ #
 
     # Workflow Similarity Scores
 
     @classmethod
-    def similarity_scores(cls, a: BaseModel, b: BaseModel):
+    def similarity_scores(cls, a: BaseModel, b: BaseModel) -> None:
         matches, unmatched_a, unmatched_b, step_score = cls._align_steps_with_matches(
             a.steps, b.steps
         )
