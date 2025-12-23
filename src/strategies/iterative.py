@@ -18,7 +18,7 @@ class IterativeStrategy(StrategyBase):
         response_model = context.response_model
 
         if debug:
-            print("Generating workflow with GenerativeAdversarialOrchestrator...")
+            print("Generating workflow with IterativeStrategy...")
             print("User Prompt:", user_prompt)
             input("Press Enter to continue or Ctrl+C to exit...")
 
