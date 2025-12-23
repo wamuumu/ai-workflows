@@ -16,7 +16,7 @@ class RefinementFeature(FeatureBase):
         if not workflow:
             raise ValueError("No workflow provided for refinement.")
         
-        workflow_json = workflow.model_dump_json()
+        workflow_json = workflow.model_dump_json(indent=2)
 
         if debug:
             print("Refining workflow...")

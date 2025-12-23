@@ -1,7 +1,6 @@
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
-from utils.workflow import WorkflowUtils
 
 class IterativeStrategy(StrategyBase):
     """Iterative generation strategy where generator and discriminator agents work together to build the workflow step by step."""
@@ -9,7 +8,7 @@ class IterativeStrategy(StrategyBase):
     def __init__(self, max_rounds: int = 5):
         super().__init__(max_rounds=max_rounds)
 
-    def generate(self, context, save, show, debug):
+    def generate(self, context, debug):
         
         if self.max_rounds < 1:
             raise ValueError("max_rounds must be a positive integer.")
@@ -58,12 +57,5 @@ class IterativeStrategy(StrategyBase):
                 break
             
             next_message = f"Please revise the workflow based on the following critique:\n{critique}\n"
-
-        if show:
-            WorkflowUtils.show(workflow)
-        
-        if save:
-            WorkflowUtils.save_json(workflow)
-            WorkflowUtils.save_html(workflow)
 
         return workflow

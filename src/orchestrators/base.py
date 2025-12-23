@@ -10,6 +10,7 @@ from models.execution_response import ExecutionResponse
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
+from utils.workflow import WorkflowUtils
 
 class AgentSchema(BaseModel):
     generator: Optional[AgentBase] = CerebrasAgent()
@@ -47,10 +48,17 @@ class ConfigurableOrchestrator:
         for feature in self.pre_features:
             context = feature.apply(context, debug)
 
-        context.workflow = self.strategy.generate(context, save, show, debug)
+        context.workflow = self.strategy.generate(context, debug)
 
         for feature in self.post_features:
             context = feature.apply(context, debug)
+        
+        if show:
+            WorkflowUtils.show(context.workflow)
+        
+        if save:
+            WorkflowUtils.save_json(context.workflow)
+            WorkflowUtils.save_html(context.workflow)
 
         return context.workflow
     

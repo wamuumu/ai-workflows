@@ -1,7 +1,6 @@
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
-from utils.workflow import WorkflowUtils
 
 class MonolithicStrategy(StrategyBase):
     """One-shot generation strategy where a single agent generates the entire workflow in one go."""
@@ -9,7 +8,7 @@ class MonolithicStrategy(StrategyBase):
     def __init__(self):
         super().__init__()
 
-    def generate(self, context, save, show, debug):
+    def generate(self, context, debug):
 
         agents = context.agents
         user_prompt = context.prompt
@@ -26,13 +25,4 @@ class MonolithicStrategy(StrategyBase):
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
         system_prompt = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format())
 
-        workflow = agents.generator.generate_structured_content(system_prompt, user_prompt, response_model)
-
-        if show:
-            WorkflowUtils.show(workflow)
-        
-        if save:
-            WorkflowUtils.save_json(workflow)
-            WorkflowUtils.save_html(workflow)
-        
-        return workflow
+        return agents.generator.generate_structured_content(system_prompt, user_prompt, response_model)
