@@ -22,6 +22,7 @@ class HierarchicalStrategy(StrategyBase):
         planning_prompt = PromptUtils.get_system_prompt("workflow_planning")
         task_generation_prompt = PromptUtils.get_system_prompt("task_generation")
         task_generation_prompt_with_tools = PromptUtils.inject(task_generation_prompt, ToolRegistry.to_prompt_format())
+        merge_prompt = PromptUtils.get_system_prompt("task_merge")
 
         if not agents.planner:
             raise ValueError("Planner agent not found.")
@@ -37,15 +38,15 @@ class HierarchicalStrategy(StrategyBase):
         while True:
             plan = planner_chat.send_message(next_message, category="generation")
 
-            if debug:
-                print("Generated Plan:", plan)
-                input("Press Enter to continue or Ctrl+C to exit...")
-
             if "END_PLANNING" in plan.upper().strip():
                 break
 
             subtasks.append(plan)
             next_message = f"Sub-task completed. Continue planning the next sub-task.\n"
+        
+        if debug:
+            print("Final Subtasks:", subtasks)
+            input("Press Enter to continue or Ctrl+C to exit...")
         
         fragments = []
         for subtask in subtasks:
@@ -53,20 +54,11 @@ class HierarchicalStrategy(StrategyBase):
             fragments.append(fragment)
 
             if debug:
-                print(f"Subtask: {subtask}\n\n Generated Fragment: {fragment}")
+                print(f"\n\nSubtask: {subtask}\n Generated Fragment: {fragment}")
                 input("Press Enter to continue or Ctrl+C to exit...")
-        
-        step_counter = 1
-        merged = {
-            "title": "Hierarchical Workflow",
-            "description": "A workflow generated using hierarchical strategy.",
-            "steps": []
-        }
 
-        for fragment in fragments:
-            for step in fragment.get("steps", []):
-                step["id"] = f"step_{step_counter}"
-                step_counter += 1
-                merged["steps"].append(step)
+        fragment_string = "\n\n".join([f.model_dump_json() for f in fragments])
+        print("Generated Fragments JSON:", fragment_string)
+        merged = agents.planner.generate_structured_content(merge_prompt, fragment_string, response_model)
 
         return response_model.model_validate(merged)

@@ -25,16 +25,17 @@ Action-specific rules:
 
    * The step's parameters MUST contain ONLY a single key named "prompt".
    * The output of a "call_llm" step is unstructured text.
-   * Reference outputs of call_llm steps using the result key "result" (i.e., {step_X.result}).
+   * Reference outputs using **global artifact placeholders** defined by the planner (e.g., `{weather_forecast}`, `{rain_decision}`).
+   * Do NOT hardcode local step numbers for cross-fragment references; placeholders will be resolved to global step IDs during merging.
 
 Referencing rules:
 
-* When a step consumes output from an earlier step, reference values using the exact placeholder format {step_X.result_key}.
+* When a step consumes output from an earlier step, reference values using the **planner-defined artifact placeholders**.
 * Ensure that:
 
-  * step_X exists
-  * result_key is explicitly produced by step_X according to the schema or tool definition
-* Do NOT reference outputs that are not explicitly defined.
+  * The referenced artifact exists in the current fragment or is produced by a previous fragment.
+  * The artifact corresponds to a defined result from a tool or previous step.
+* Do NOT reference outputs that are not explicitly defined by the planner.
 
 Logical and semantic requirements:
 
@@ -43,14 +44,16 @@ Logical and semantic requirements:
 * Do NOT omit required reasoning steps.
 * Do NOT include unnecessary, redundant, or unreachable steps.
 * Ensure control flow is unambiguous and executable.
+* Maintain artifact integrity: each step must produce or consume artifacts exactly as defined by the planner for this sub-task.
+* Include explicit **transitions from this fragment to next sub-task(s)** using artifact placeholders.
 
 Failure modes to avoid:
 
 * Do not invent tools or parameter keys.
 * Do not invent structured outputs for call_llm steps.
-* Do not reference nonexistent steps or output keys.
-* Do not include logic unrelated to the provided sub-task.
+* Do not reference nonexistent artifacts or step outputs.
 * Do not output partial JSON or any non-JSON wrapper text.
+* Do not add logic unrelated to the provided sub-task.
 
 Goal:
-Return a complete, executable JSON workflow fragment that correctly implements the given sub-task, adheres strictly to the provided schema, and can be safely merged with other fragments produced for adjacent sub-tasks.
+Return a complete, executable JSON workflow fragment that correctly implements the given sub-task, uses planner-defined artifact placeholders for all inputs and outputs, includes explicit transitions to next sub-task(s), adheres strictly to the provided schema, and can be safely merged with other fragments produced for adjacent sub-tasks.

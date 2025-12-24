@@ -5,7 +5,7 @@ from agents.cerebras import CerebrasAgent, CerebrasModel
 from features import ChatClarificationFeature, RefinementFeature
 from models import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
-from strategies import MonolithicStrategy, IterativeStrategy
+from strategies import MonolithicStrategy, IterativeStrategy, HierarchicalStrategy
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
 
@@ -21,15 +21,14 @@ for run in range(args.runs):
     
     # Configure the orchestrator with desired agents, strategy and features
     orchestrator = ConfigurableOrchestrator(
-        strategy=MonolithicStrategy(),
-        features=[ChatClarificationFeature()],
+        strategy=HierarchicalStrategy()
     )
 
     # Define the user prompt to use for workflow generation
     user_prompt = PromptUtils.get_user_prompt("weather_activity_plan")
 
     # Generate the workflow (one-shot)
-    workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow, save=False, debug=True)
+    workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow, save=True, debug=False)
 
     # Execute the workflow
     if False: 

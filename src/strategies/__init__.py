@@ -1,2 +1,3 @@
 from strategies.monolithic import MonolithicStrategy
 from strategies.iterative import IterativeStrategy 
+from strategies.hierarchical import HierarchicalStrategy

@@ -15,7 +15,7 @@ from utils.workflow import WorkflowUtils
 class AgentSchema(BaseModel):
     generator: Optional[AgentBase] = CerebrasAgent()
     discriminator: Optional[AgentBase] = GeminiAgent()
-    # planner: Optional[AgentBase] = None
+    planner: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
     chatter: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
     refiner: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
     executor: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
