@@ -1,5 +1,7 @@
 import json
+import numpy as np
 
+from typing import List
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
 from collections import Counter
@@ -23,6 +25,7 @@ class MetricSchema(BaseModel):
 class MetricUtils:
     
     _metrics: MetricSchema = MetricSchema()
+    _has_finished: bool = False
 
     # ============================= Runtime Metrics ============================= # 
 
@@ -40,6 +43,10 @@ class MetricUtils:
         metric_set.total_tokens += tokens
     
     @classmethod
+    def finish(cls) -> None:
+        cls._has_finished = True
+
+    @classmethod
     def display(cls) -> None:
         print("\nOrchestrator Metrics:")
         dumped_metrics = cls._metrics.model_dump()
@@ -50,6 +57,7 @@ class MetricUtils:
                     print(f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
                 else:
                     print(f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
+        print(f"    Execution finished: {cls._has_finished}\n")
     
     @classmethod
     def reset(cls) -> None:
@@ -61,42 +69,50 @@ class MetricUtils:
 
     # ============================================================================ #
     # 1. Similarity Scores
+    # For consistency and reproducibility evaluations
     # ============================================================================ #
 
     @classmethod
-    def similarity_scores(cls, a: BaseModel, b: BaseModel) -> None:
-        matches, unmatched_a, unmatched_b, step_score = cls._align_steps_with_matches(
-            a.steps, b.steps
-        )
+    def similarity_scores(cls, workflows: List[BaseModel], threshold: float = 0.5) -> None:
+        """
+        Compute pairwise similarity matrix between multiple workflows.
+        """
+        n = len(workflows)
+        matrix = np.zeros((n, n))
 
+        for i in range(n):
+            for j in range(i, n):
+                total_score = cls._workflow_similarity(workflows[i], workflows[j], threshold)
+                matrix[i, j] = total_score
+                matrix[j, i] = total_score  # symmetric
+
+        cls._print_similarity_matrix(matrix)
+    
+    @classmethod
+    def _print_similarity_matrix(cls, matrix: np.ndarray):
+        n = matrix.shape[0]
+        col_width = 6  # width for each column
+
+        # Print header
+        header = " " * (col_width - 1) + "".join([f"W{i+1}".ljust(col_width) for i in range(n)])
+        print("\nWorkflow Similarity Matrix\n")
+        print(header)
+
+        # Print each row
+        for i in range(n):
+            row_values = "".join([f"{matrix[i, j]:.2f}".ljust(col_width) for j in range(n)])
+            print(f"W{i+1}".ljust(col_width - 1) + row_values)
+
+    @classmethod
+    def _workflow_similarity(cls, a: BaseModel, b: BaseModel, threshold: float = 0.5) -> float:
+        """
+        Compute overall similarity between two workflows.
+        """
+        _, _, _, step_score = cls._align_steps_with_matches(a.steps, b.steps, threshold)
         transition_score = cls._transition_similarity(a, b)
 
-        total_score = (
-            0.7 * step_score +
-            0.3 * transition_score
-        )
-
-        # Print summary
-        print("\nWorkflow Comparison Results:")
-        print(f"  Total similarity: {total_score:.3f}")
-        print(f"  Step similarity: {step_score:.3f}")
-        print(f"  Transition similarity: {transition_score:.3f}\n")
-
-        # Print matched steps
-        print("  Matched steps:")
-        for m in matches:
-            print(f"    {m.step_a_id} ↔ {m.step_b_id} | similarity: {m.similarity:.3f}")
-
-        # Print unmatched steps
-        if unmatched_a:
-            print("\nUnmatched steps in first workflow:")
-            for s in unmatched_a:
-                print(f"  {s}")
-
-        if unmatched_b:
-            print("\nUnmatched steps in second workflow:")
-            for s in unmatched_b:
-                print(f"  {s}")
+        total_score = 0.7 * step_score + 0.3 * transition_score
+        return total_score
 
     @classmethod
     def _normalize_step(cls, step: BaseModel) -> dict:
@@ -203,6 +219,7 @@ class MetricUtils:
     
     # ============================================================================ #
     # 2. Correctness Scores
+    # For expected behavior evaluations
     # ============================================================================ #
 
     @classmethod

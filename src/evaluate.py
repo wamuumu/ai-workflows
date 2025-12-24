@@ -6,8 +6,8 @@ from utils.metric import MetricUtils
 workflow1 = WorkflowUtils.load_json("/path/to/workflow1.json", StructuredWorkflow)
 workflow2 = WorkflowUtils.load_json("/path/to/workflow2.json", StructuredWorkflow)
 
-# Compute similarity scores between the two workflows
-MetricUtils.similarity_scores(workflow1, workflow2)
+# Compute similarity matrix between workflows
+MetricUtils.similarity_scores([workflow1, workflow2])
 
 # Compute correctness scores against reference constraints
 MetricUtils.correctness_scores(

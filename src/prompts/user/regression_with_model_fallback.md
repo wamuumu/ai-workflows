@@ -1,1 +1,0 @@
-You're given numerical training data. Compute descriptive statistics, train a regression model, and generate predictions. If the variance of the output variable is under a threshold, switch to a simpler model.

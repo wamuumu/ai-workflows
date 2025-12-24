@@ -1,4 +1,5 @@
 import os
+import json
 
 from pathlib import Path
 
@@ -13,7 +14,7 @@ class PromptUtils:
     _user_prompts: dict[str, str] = {}
 
     @classmethod
-    def _load_prompts(cls, directory: Path) -> dict[str, str]:
+    def _load_system_prompts(cls, directory: Path) -> dict[str, str]:
         """Load all .md files in a directory into a dictionary."""
         if not directory.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
@@ -26,12 +27,25 @@ class PromptUtils:
         return prompts
 
     @classmethod
+    def _load_user_prompts(cls, directory: Path) -> dict[str, str]:
+        """Load all .json files in a directory into a dictionary."""
+        if not directory.exists():
+            raise FileNotFoundError(f"Directory not found: {directory}")
+
+        prompts = {}
+        for file in directory.glob("*.json"):
+            key = file.stem
+            with open(file, "r", encoding="utf-8") as f:
+                prompts[key] = json.load(f)
+        return prompts
+
+    @classmethod
     def _ensure_loaded(cls):
         """Load prompts if not already loaded."""
         if not cls._system_prompts:
-            cls._system_prompts = cls._load_prompts(Path(SYSTEM_PROMPTS_DIR))
+            cls._system_prompts = cls._load_system_prompts(Path(SYSTEM_PROMPTS_DIR))
         if not cls._user_prompts:
-            cls._user_prompts = cls._load_prompts(Path(USER_PROMPTS_DIR))
+            cls._user_prompts = cls._load_user_prompts(Path(USER_PROMPTS_DIR))
     
     @classmethod
     def get_system_prompt(cls, name: str) -> str:
@@ -41,10 +55,10 @@ class PromptUtils:
         return cls._system_prompts[name]
 
     @classmethod
-    def get_user_prompt(cls, name: str) -> str:
+    def get_user_prompts(cls, name: str) -> str:
         cls._ensure_loaded()
         if name not in cls._user_prompts:
-            raise KeyError(f"User prompt not found: {name}")
+            raise KeyError(f"User prompts not found: {name}")
         return cls._user_prompts[name]
 
     @classmethod
@@ -59,7 +73,8 @@ class PromptUtils:
     
     @classmethod
     def inject(cls, prompt: str, *args, **kwargs) -> str:
-        """Inject arguments into the prompt."""
+        """Inject arguments into the system prompt ONLY."""
+
         for arg in args:
             prompt += f"\n{arg}"
             

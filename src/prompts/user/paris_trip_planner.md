@@ -1,1 +1,0 @@
-I'm traveling to Paris next Monday for 3 days. Check the weather forecast, find the currency exchange rate from USD to EUR for $500, search for popular tourist attractions, translate them in Italian and create a summary document called paris_trip.txt with all this information

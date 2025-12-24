@@ -11,6 +11,7 @@ from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 from utils.workflow import WorkflowUtils
+from utils.metric import MetricUtils
 
 class AgentSchema(BaseModel):
     generator: Optional[AgentBase] = CerebrasAgent()
@@ -147,4 +148,5 @@ class ConfigurableOrchestrator:
             else:
                 raise ValueError(f"Unknown action '{p_action}' received during workflow execution.")
         
+        MetricUtils.finish()
         print("\nWorkflow execution completed!")

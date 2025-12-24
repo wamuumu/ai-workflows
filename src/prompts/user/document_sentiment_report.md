@@ -1,1 +1,0 @@
-Read all .txt files in the documents folder, analyze the sentiment of each, create a comparison report showing which documents are most positive vs negative, and email the report to manager@company.com

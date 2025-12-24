@@ -1,4 +1,5 @@
 import argparse
+import random
 
 from agents.google import GeminiAgent, GeminiModel
 from agents.cerebras import CerebrasAgent, CerebrasModel
@@ -9,8 +10,11 @@ from strategies import MonolithicStrategy, IterativeStrategy, HierarchicalStrate
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
 
+iterations_idx = []
+
 argparser = argparse.ArgumentParser(description="AI Workflow Orchestrator")
 argparser.add_argument("--runs", type=int, default=1, help="Number of sequential runs to execute")
+argparser.add_argument("--it", type=bool, default=False, help="Pick a random iteration for user prompt")
 args = argparser.parse_args()
 
 for run in range(args.runs):
@@ -25,7 +29,14 @@ for run in range(args.runs):
     )
 
     # Define the user prompt to use for workflow generation
-    user_prompt = PromptUtils.get_user_prompt("weather_activity_plan")
+    if args.it:
+        # Pick random iteration index not already picked
+        prompts = PromptUtils.get_user_prompts("weather_activity_plan")
+        random_idx = random.choice([i for i in range(1, len(prompts)+1) if i not in iterations_idx])
+        iterations_idx.append(random_idx)
+        user_prompt = prompts.get(str(random_idx), "1")
+    else:
+        user_prompt = PromptUtils.get_user_prompts("weather_activity_plan").get("1")
 
     # Generate the workflow (one-shot)
     workflow = orchestrator.generate(user_prompt, response_model=StructuredWorkflow, save=True, debug=False)

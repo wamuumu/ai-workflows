@@ -1,1 +1,0 @@
-Check the weather in London for the next 3 days. If any day has rain, find indoor activities and save them to rainy_activities.txt. Otherwise, search for outdoor activities and save to other_activities.txt. Also send me an email summarizing the plan.
