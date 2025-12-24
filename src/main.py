@@ -21,7 +21,7 @@ for run in range(args.runs):
     
     # Configure the orchestrator with desired agents, strategy and features
     orchestrator = ConfigurableOrchestrator(
-        strategy=HierarchicalStrategy()
+        strategy=MonolithicStrategy()
     )
 
     # Define the user prompt to use for workflow generation

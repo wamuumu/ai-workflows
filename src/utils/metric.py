@@ -1,5 +1,8 @@
+import json
+
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
+from collections import Counter
 
 @dataclass
 class StepMatch:
@@ -56,7 +59,9 @@ class MetricUtils:
 
     # ============================ Evaluation Metrics ============================ #
 
-    # Workflow Similarity Scores
+    # ============================================================================ #
+    # 1. Similarity Scores
+    # ============================================================================ #
 
     @classmethod
     def similarity_scores(cls, a: BaseModel, b: BaseModel) -> None:
@@ -196,4 +201,67 @@ class MetricUtils:
 
         return len(ea & eb) / len(ea | eb)
     
-    # TODO: Implement others...
+    # ============================================================================ #
+    # 2. Correctness Scores
+    # ============================================================================ #
+
+    @classmethod
+    def correctness_scores(cls, reference: str, workflow: BaseModel) -> None:
+
+        with open(reference, "r") as ref:
+            reference_data = json.load(ref)
+        
+        # Expected tool calls
+        tool_count = Counter(step.tool_name for step in workflow.steps if step.action == "call_tool" and step.tool_name)
+        expected_tool_calls = reference_data.get("expected_tool_calls", {})
+
+        tool_scores = []
+        for tool, limits in expected_tool_calls.items(): 
+            count = tool_count.get(tool, 0)
+            tool_scores.append(cls._action_score(count, limits["min"], limits["max"]))
+
+        # Expected LLM calls
+        llm_count = sum(1 for step in workflow.steps if step.action == "call_llm")
+        expected_llm_calls = reference_data.get("expected_llm_calls", {})
+        llm_score = cls._action_score(llm_count, expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf')))
+
+        # Expected total steps
+        total_steps = len(workflow.steps)
+        expected_total_steps = reference_data.get("expected_step_count_range", [])
+        if total_steps >= expected_total_steps[0] and total_steps <= expected_total_steps[1]:
+            step_score = 1
+
+        # Expected branch transitions
+        transition_score = 0
+        branching_nodes = [step for step in workflow.steps if step.transitions and len(step.transitions) > 1]
+        expected_branching = reference_data.get("expected_branch_transitions", {})
+        for _ , constraints in expected_branching.items():
+            keywords = constraints.get("keywords", [])
+            for i, step in enumerate(branching_nodes, 1):
+                if any(kw in step.parameters[0].value for kw in keywords):
+                    branch_count = len(step.transitions)
+                    if constraints.get("transitions", 0) == branch_count and i == constraints.get("expected_at", 0):
+                        transition_score += 1
+        
+        transition_score = transition_score / max(len(branching_nodes), 1)
+
+        # Aggregate scores
+        all_scores = tool_scores + [llm_score, step_score, transition_score]
+        overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
+
+        # Print summary
+        print("\nCorrectness Evaluation Results:")
+        print(f"  Overall correctness score: {overall_score:.3f}")
+        print(f"  Tool call scores: {[f'{s:.3f}' for s in tool_scores]}")
+        print(f"  LLM call score: {llm_score:.3f}")
+        print(f"  Total step score: {step_score:.3f}")
+        print(f"  Branch transition score: {transition_score:.3f}\n")
+
+    @classmethod
+    def _action_score(cls, count: int, min_calls: int, max_calls: int) -> float:
+        if count < min_calls:
+            return count / min_calls
+        elif count > max_calls:
+            return max_calls / count
+        else:
+            return 1.0
