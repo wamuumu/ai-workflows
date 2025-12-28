@@ -55,7 +55,7 @@ class PromptUtils:
         return cls._system_prompts[name]
 
     @classmethod
-    def get_user_prompts(cls, name: str) -> str:
+    def get_user_prompts(cls, name: str) -> dict[str, str]:
         cls._ensure_loaded()
         if name not in cls._user_prompts:
             raise KeyError(f"User prompts not found: {name}")
