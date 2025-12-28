@@ -5,7 +5,6 @@ class Parameter(BaseModel):
     """An object representing a parameter item in a workflow step."""
     key: str = Field(..., description="The parameter key")
     value: Union[str, int, float, bool] = Field(..., description="The parameter value")
-    from_step: Optional[str] = Field(None, description="Reference to a previous step's output")
 
 class Transition(BaseModel):
     """A single transition in a structured workflow."""
@@ -38,4 +37,5 @@ class StructuredWorkflow(BaseModel):
     """A structured workflow consisting of a sequence of steps and allowing branching."""
     title: str = Field(..., description="Title of the structured workflow")
     description: str = Field(..., description="Description of the structured workflow")
+    target_objective: str = Field(..., description="The intended objective based on the user prompt")
     steps: List[Step] = Field(..., description="List of steps in the structured workflow")

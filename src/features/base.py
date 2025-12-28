@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Literal
 
 class FeatureBase(ABC):
     """Abstract base class for enhancement features."""
 
-    _phase: str
+    _phase: Literal["pre", "post"]
 
     @abstractmethod
     def apply(self, context, debug: bool):

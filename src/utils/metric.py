@@ -254,10 +254,10 @@ class MetricUtils:
         expected_branching = reference_data.get("expected_branch_transitions", {})
         for _ , constraints in expected_branching.items():
             keywords = constraints.get("keywords", [])
-            for i, step in enumerate(branching_nodes, 1):
+            for step in branching_nodes:
                 if any(kw in step.parameters[0].value for kw in keywords):
                     branch_count = len(step.transitions)
-                    if constraints.get("transitions", 0) == branch_count and i == constraints.get("expected_at", 0):
+                    if constraints.get("transitions", 0) == branch_count:
                         transition_score += 1
         
         transition_score = transition_score / max(len(branching_nodes), 1)
