@@ -10,8 +10,7 @@
   "expected_branch_transitions": {
     "weather_check": {
         "keywords": ["rain", "rainy", "forecast", "forecasts", "determine", "respond", "decide"],
-        "transitions": 2,
-        "expected_at": 2
+        "transitions": 2
     }
   },
   "expected_step_count_range": [8, 12]

@@ -1,0 +1,50 @@
+Baseline: 
+    - Monolithic strategy with linear workflow and all toolsets available.
+    - Expected outcome: Don't work well, 1 section in the report
+
+    - Monolithic strategy with linear workflow and Refinement
+    - Expected outcome: Slightly better than above, but still not good
+
+Monolithic strategy variations:
+    - Monolithic strategy with structured workflow and all toolsets available.
+    - Expected outcome: Better than baseline, because of structured workflow
+    
+    - Monolithic strategy with structured workflow and limited toolsets (maybe even none).
+    - Expected outcome: Show that structured workflow is better even with limited toolsets
+
+    - Monolithic strategy with structured workflow, all toolset available and chat-based clarification.
+    - Expected outcome: Best performance, chat-based clarification helps a lot even in monolithic strategy
+
+    - Monolithic strategy with structured workflow and Refinement
+    - Expected outcome: Should be better, but not as good as chat-based clarification (missing information from user)
+
+Iterative strategy variations:
+    - Iterative strategy with structured workflow and all toolsets available.
+    - Expected outcome: should work better than monolithic structured workflow (because of validator)
+
+    - Iterative strategy with structured workflow and limited toolsets.
+    - Expected outcome: validator should be less hallucinated
+
+    - Iterative strategy with increasing rounds
+    - Expected outcome: consistency and correctness should improve, efficiency should decrease
+
+    - Iterative strategy with structured workflow, all toolset available and chat-based clarification.
+    - Expected outcome: Best performance in iterative strategies, chat-based clarification helps a lot
+
+Hierachical strategy variations:
+    - Hierarchical strategy with structured workflow and all toolsets available.
+    - Expected outcome: should work better than iterative structured workflow (because of intent resolution)
+
+    - Hierarchical strategy with structured workflow and limited toolsets.
+    - Expected outcome: intent resolution should help more in limited toolset scenario
+
+    - Hierarchical strategy with structured workflow, all toolset available and chat-based clarification.
+    - Expected outcome: Best performance overall, chat-based clarification helps a lot
+
+    - Hierarchical strategy with structured workflow, all toolset available and refinement.
+    - Expected outcome: should be good, but not as good as chat-based clarification
+
+Final comparison:
+    - Monolitich is the best in terms of efficiency
+    - Hierarchical should outperform monolithic and iterative in reasoning coherence / intent resolution
+    - Hierarchical should be the less efficient
