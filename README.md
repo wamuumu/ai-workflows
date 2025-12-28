@@ -1,9 +1,13 @@
+<div align="center">
+
 # AI-Workflows
 
 ### *An evaluation framework to test different workflow generation designs.*
 
 [![python-logo]](https://www.python.org/)
 [![license-logo]](LICENSE)
+
+</div>
 
 ---
 
