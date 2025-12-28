@@ -340,8 +340,8 @@ from utils.workflow import WorkflowUtils
 from utils.metric import MetricUtils
 
 # Load workflows to compare
-workflow1 = WorkflowUtils.load_json("data/workflows/workflow1.json", StructuredWorkflow)
-workflow2 = WorkflowUtils.load_json("data/workflows/workflow2.json", StructuredWorkflow)
+workflow1 = WorkflowUtils.load_json("/path/to/workflow1.json", StructuredWorkflow)
+workflow2 = WorkflowUtils.load_json("/path/to/workflow2.json", StructuredWorkflow)
 
 # Compute pairwise similarity matrix
 MetricUtils.similarity_scores([workflow1, workflow2, workflow3])
@@ -371,39 +371,32 @@ W3    0.72  0.68  1.00
 from utils.metric import MetricUtils
 from utils.workflow import WorkflowUtils
 
-workflow = WorkflowUtils.load_json("data/workflows/workflow.json", StructuredWorkflow)
+workflow = WorkflowUtils.load_json("/path/to/workflow.json", StructuredWorkflow)
 MetricUtils.correctness_scores(
-    reference="tests/grounds/weather_activity_plan.json",
+    reference="/path/to/constraints.json",
     workflow=workflow
 )
 ```
 
-**Ground Truth Constraints (`tests/grounds/*.json`):**
+*Example of constraints file:*
 ```json
 {
   "expected_tool_calls": {
     "current_weather": {"min": 1, "max": 1},
+    "get_indoor_activities": {"min": 1, "max": 1},
+    "get_outdoor_activities": {"min": 1, "max": 1},
+    "write_file": {"min": 1, "max": 2},
     "send_email": {"min": 1, "max": 2}
   },
   "expected_llm_calls": {"min": 1, "max": 3},
   "expected_branch_transitions": {
     "weather_check": {
-      "keywords": ["rain", "forecast"],
-      "transitions": 2
+        "keywords": ["rain", "rainy", "forecast", "forecasts", "determine", "respond", "decide"],
+        "transitions": 2
     }
   },
   "expected_step_count_range": [8, 12]
 }
-```
-
-**Output Example:**
-```
-Correctness Evaluation Results:
-  Overall correctness score: 0.875
-  Tool call scores: ['1.000', '1.000', '0.500']
-  LLM call score: 1.000
-  Total step score: 1.000
-  Branch transition score: 1.000
 ```
 
 **Metrics Computed:**
@@ -411,6 +404,19 @@ Correctness Evaluation Results:
 - LLM call frequency (min/max constraints)
 - Total step count (range validation)
 - Branch transition correctness (keyword + count matching)
+
+**Output Example:**
+
+*If all constraints are satisfied, you will get somthing like this:*
+
+```
+Correctness Evaluation Results:
+  Overall correctness score: 1.000
+  Tool call scores: ['1.000', '1.000', '1.000', '1.000', '1.000']
+  LLM call score: 1.000
+  Total step score: 1.000
+  Branch transition score: 1.000
+```
 
 ---
 
