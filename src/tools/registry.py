@@ -107,16 +107,6 @@ class Tool:
 
         # fallback
         return str(type_hint)
-    
-    def to_dict(self) -> dict:
-        """Convert tool information to dictionary format."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "category": self.category,
-            "inputs": self.inputs,
-            "outputs": self.outputs
-        }
 
     def to_prompt_format(self) -> str:
         """Format tool information for LLM prompt in a clean, readable way."""
@@ -187,53 +177,41 @@ class ToolRegistry:
         return tool
     
     @classmethod
-    def get_all(cls) -> dict[str, Tool]:
+    def get_all(cls) -> List[Tool]:
         """Retrieve all registered tools."""
         cls.__ensure_initialized()
-        return cls._tools.copy()
+        return list(cls._tools.values())
     
     @classmethod
-    def get_by_category(cls, category: str) -> dict[str, Tool]:
+    def get_by_category(cls, category: str) -> List[Tool]:
         """Retrieve tools by category."""
         cls.__ensure_initialized()
-        return {name: tool for name, tool in cls._tools.items() if tool.category == category}
+        return [tool for tool in cls._tools.values() if tool.category == category]
     
     @classmethod
-    def get_categories(cls) -> list[str]:
-        """List all tool categories."""
+    def to_prompt_format(cls, tools: List[Tool] = None, group_by_category: bool = True) -> str:
+        """Generate a formatted string representation of the provided tools for LLM prompts."""
         cls.__ensure_initialized()
-        return list(set(tool.category for tool in cls._tools.values()))
-    
-    @classmethod
-    def to_dict(cls) -> dict:
-        """Convert all tools to dictionary format."""
-        cls.__ensure_initialized()
-        return {
-            "tools": [tool.to_dict() for tool in cls._tools.values()],
-            "categories": cls.get_categories(),
-            "total_tools": len(cls._tools)
-        }
-    
-    @classmethod
-    def to_prompt_format(cls, group_by_category: bool = True) -> str:
-        """Generate a formatted string representation of all tools for LLM prompts."""
-        cls.__ensure_initialized()
+        
+        if tools is None:
+            tools = list(cls._tools.values())
+        
+        categories = sorted(set([tool.category for tool in tools]))
         
         output = "\nAvailable Tools:\n\n"
-        output += f"Total tools: {len(cls._tools)}\n"
-        output += f"Categories: {', '.join(cls.get_categories())}\n\n"
+        output += f"Total tools: {len(tools)}\n"
+        output += f"Categories: {', '.join(categories)}\n\n"
         
         if group_by_category:
-            categories = sorted(cls.get_categories())
             for category in categories:
                 output += f"[Category: {category.upper()}]\n\n"
-                tools = cls.get_by_category(category)
-                for tool_name in sorted(tools.keys()):
-                    output += tools[tool_name].to_prompt_format()
-                    output += "\n"
+                for tool in tools:
+                    if tool.category == category:
+                        output += tool.to_prompt_format()
+                        output += "\n"
         else:
-            for tool_name in sorted(cls._tools.keys()):
-                output += cls._tools[tool_name].to_prompt_format()
+            for tool in sorted(tools, key=lambda t: t.name):
+                output += tool.to_prompt_format()
                 output += "\n"
         
         return output

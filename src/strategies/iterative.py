@@ -15,6 +15,7 @@ class IterativeStrategy(StrategyBase):
         
         agents = context.agents
         user_prompt = context.prompt
+        available_tools = context.available_tools
         response_model = context.response_model
 
         if debug:
@@ -23,10 +24,10 @@ class IterativeStrategy(StrategyBase):
             input("Press Enter to continue or Ctrl+C to exit...")
 
         generation_prompt = PromptUtils.get_system_prompt("workflow_generation")
-        generation_prompt_with_tools = PromptUtils.inject(generation_prompt, ToolRegistry.to_prompt_format())
+        generation_prompt_with_tools = PromptUtils.inject(generation_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
 
         critique_prompt = PromptUtils.get_system_prompt("workflow_critique")
-        critique_prompt_with_tools = PromptUtils.inject(critique_prompt, ToolRegistry.to_prompt_format(), workflow_expected_schema=response_model.model_json_schema(), user_prompt=user_prompt)
+        critique_prompt_with_tools = PromptUtils.inject(critique_prompt, ToolRegistry.to_prompt_format(tools=available_tools), workflow_expected_schema=response_model.model_json_schema(), user_prompt=user_prompt)
         
         if not agents.generator:
             raise ValueError("Generator agent not found.")

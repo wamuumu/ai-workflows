@@ -11,6 +11,7 @@ class ChatClarificationFeature(FeatureBase):
 
         agents = context.agents
         user_prompt = context.prompt
+        available_tools = context.available_tools
 
         if debug:
             print("Chatting with user...")
@@ -18,7 +19,7 @@ class ChatClarificationFeature(FeatureBase):
             input("Press Enter to continue or Ctrl+C to exit...")
 
         chat_prompt = PromptUtils.get_system_prompt("chat_clarification")
-        chat_prompt_with_tools = PromptUtils.inject(chat_prompt, ToolRegistry.to_prompt_format())
+        chat_prompt_with_tools = PromptUtils.inject(chat_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
 
         if not agents.chatter:
             raise ValueError("Chatter agent not found.")

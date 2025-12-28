@@ -11,6 +11,7 @@ class RefinementFeature(FeatureBase):
 
         agents = context.agents
         user_prompt = context.prompt
+        available_tools = context.available_tools
         workflow = context.workflow
 
         if not workflow:
@@ -25,7 +26,7 @@ class RefinementFeature(FeatureBase):
             input("Press Enter to continue or Ctrl+C to exit...")
 
         refine_prompt = PromptUtils.get_system_prompt("workflow_refinement")
-        refine_prompt_with_tools = PromptUtils.inject(refine_prompt, ToolRegistry.to_prompt_format(), original_user_prompt=user_prompt)
+        refine_prompt_with_tools = PromptUtils.inject(refine_prompt, ToolRegistry.to_prompt_format(tools=available_tools), original_user_prompt=user_prompt)
 
         if not agents.refiner:
             raise ValueError("Refiner agent not found.")

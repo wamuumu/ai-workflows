@@ -7,6 +7,7 @@ from features import ChatClarificationFeature, RefinementFeature
 from models import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
 from strategies import MonolithicStrategy, IterativeStrategy, HierarchicalStrategy
+from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
 
@@ -25,7 +26,8 @@ for run in range(args.runs):
     
     # Configure the orchestrator with desired agents, strategy and features
     orchestrator = ConfigurableOrchestrator(
-        strategy=MonolithicStrategy()
+        strategy=MonolithicStrategy(),
+        available_tools=ToolRegistry.get_all()
     )
 
     # Define the user prompt to use for workflow generation

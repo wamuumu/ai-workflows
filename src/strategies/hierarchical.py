@@ -12,6 +12,7 @@ class HierarchicalStrategy(StrategyBase):
         
         agents = context.agents
         user_prompt = context.prompt
+        available_tools = context.available_tools
         response_model = context.response_model
 
         if debug:
@@ -21,7 +22,7 @@ class HierarchicalStrategy(StrategyBase):
         
         planning_prompt = PromptUtils.get_system_prompt("workflow_planning")
         task_generation_prompt = PromptUtils.get_system_prompt("task_generation")
-        task_generation_prompt_with_tools = PromptUtils.inject(task_generation_prompt, ToolRegistry.to_prompt_format())
+        task_generation_prompt_with_tools = PromptUtils.inject(task_generation_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
         merge_prompt = PromptUtils.get_system_prompt("task_merge")
 
         if not agents.planner:

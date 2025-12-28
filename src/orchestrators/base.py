@@ -1,59 +1,94 @@
 import json
+import logging
 
-from pydantic import BaseModel
-from typing import Optional, Type
+from pydantic import BaseModel, Field, field_serializer
+from typing import Optional, Type, List
 from agents.base import AgentBase
 from agents.google import GeminiAgent
 from agents.cerebras import CerebrasAgent, CerebrasModel
 from features.base import FeatureBase
 from models.execution_response import ExecutionResponse
 from strategies.base import StrategyBase
-from tools.registry import ToolRegistry
+from tools.registry import Tool, ToolRegistry
 from utils.prompt import PromptUtils
 from utils.workflow import WorkflowUtils
 from utils.metric import MetricUtils
+from utils.logger import LoggerUtils
 
 class AgentSchema(BaseModel):
-    generator: Optional[AgentBase] = CerebrasAgent()
-    discriminator: Optional[AgentBase] = GeminiAgent()
-    planner: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
-    chatter: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
-    refiner: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
-    executor: Optional[AgentBase] = CerebrasAgent(CerebrasModel.LLAMA_3_3)
+    generator: Optional[AgentBase] = Field(default_factory=CerebrasAgent)
+    discriminator: Optional[AgentBase] = Field(default_factory=CerebrasAgent)
+    planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    refiner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    executor: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
 
     model_config = { "arbitrary_types_allowed": True }
+
+    @field_serializer("*")
+    def serialize(self, agent):
+        if agent is None:
+            return None
+        return {
+            "type": agent.__class__.__name__,
+            "model": getattr(agent, "model_name", None)
+        }
 
 class Context(BaseModel):
     # Input context for orchestrator operations
     agents: AgentSchema
     response_model: Type[BaseModel]
     prompt: str
+    available_tools: List[Tool] 
 
     # Output context 
     workflow: Optional[BaseModel] = None
 
     model_config = {"arbitrary_types_allowed": True}
 
+    @field_serializer("response_model")
+    def serialize_response_model(self, model):
+        return model.__name__
+
+    @field_serializer("available_tools")
+    def serialize_tools(self, tools):
+        return [tool.name for tool in tools]
+    
+    @field_serializer("workflow")
+    def serialize_workflow(self, workflow):
+        if workflow is None:
+            return None
+        return json.loads(workflow.model_dump_json(indent=2))
+
 class ConfigurableOrchestrator:
 
-    def __init__(self, strategy: StrategyBase, agents: dict[str, AgentBase] = {}, features: list[FeatureBase] = []):
+    def __init__(self, strategy: StrategyBase, available_tools: List[Tool], agents: dict[str, AgentBase] = {}, features: list[FeatureBase] = []):
         self.agents = AgentSchema(**agents)
         self.strategy = strategy
+        self.available_tools = available_tools
         self.pre_features = [f for f in features if f.get_phase() == "pre"]
         self.post_features = [f for f in features if f.get_phase() == "post"]
+        self.logger = LoggerUtils()
     
     def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
         
-        context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt)
+        self.logger.log(logging.INFO, f"Workflow generation started...")
+        context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt, available_tools=self.available_tools)
+        self.logger.log(logging.INFO, f"Initial context: {context.model_dump_json(indent=2)}")
         
         for feature in self.pre_features:
-            context = feature.apply(context, debug)
+            context: Context = feature.apply(context, debug)
+            self.logger.log(logging.INFO, f"Context after pre-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
 
         context.workflow = self.strategy.generate(context, debug)
+        self.logger.log(logging.INFO, f"Context after strategy generation: {context.model_dump_json(indent=2)}")
 
         for feature in self.post_features:
-            context = feature.apply(context, debug)
+            context: Context = feature.apply(context, debug)
+            self.logger.log(logging.INFO, f"Context after post-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
         
+        self.logger.log(logging.INFO, f"Workflow generation completed.")
+
         if show:
             WorkflowUtils.show(context.workflow)
         
@@ -64,6 +99,8 @@ class ConfigurableOrchestrator:
         return context.workflow
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
+
+        self.logger.log(logging.INFO, f"Workflow execution started...")
 
         if debug:
             print("Running workflow...")
@@ -88,6 +125,8 @@ class ConfigurableOrchestrator:
             
             response_schema = ExecutionResponse.model_validate_json(response)
             payload = response_schema.model_dump()
+
+            self.logger.log(logging.INFO, f"Execution response received: {json.dumps(payload, indent=2)}")
             
             if debug:
                 print("Response received:", json.dumps(payload, indent=2), "\n")
@@ -120,6 +159,8 @@ class ConfigurableOrchestrator:
                     results = { "error": str(e) }
                     retry = True
                 
+                self.logger.log(logging.INFO, f"Tool '{tool_name}' for step '{p_step}' executed with results: {json.dumps(results, indent=2)}")
+                
                 step_results[p_step] = results
                 next_message = json.dumps({
                     "step_id": p_step,
@@ -134,6 +175,9 @@ class ConfigurableOrchestrator:
                     input("Press Enter to continue or Ctrl+C to exit...")
             elif p_action == "call_llm":
                 results = payload.get("llm_results")
+
+                self.logger.log(logging.INFO, f"LLM action for step '{p_step}' with results: {json.dumps(results, indent=2)}")
+
                 step_results[p_step] = results
                 next_message = json.dumps({
                     "step_id": p_step,
@@ -149,4 +193,4 @@ class ConfigurableOrchestrator:
                 raise ValueError(f"Unknown action '{p_action}' received during workflow execution.")
         
         MetricUtils.finish()
-        print("\nWorkflow execution completed!")
+        self.logger.log(logging.INFO, f"Workflow execution completed.")

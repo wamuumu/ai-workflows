@@ -12,6 +12,7 @@ class MonolithicStrategy(StrategyBase):
 
         agents = context.agents
         user_prompt = context.prompt
+        available_tools = context.available_tools
         response_model = context.response_model
         
         if debug:
@@ -23,6 +24,6 @@ class MonolithicStrategy(StrategyBase):
             raise ValueError("Generator agent not found.")
         
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
-        system_prompt = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format())
+        system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
 
-        return agents.generator.generate_structured_content(system_prompt, user_prompt, response_model)
+        return agents.generator.generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
