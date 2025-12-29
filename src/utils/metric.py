@@ -148,7 +148,7 @@ class MetricUtils:
             "is_final": data.get("is_final", False),
         }
 
-    # TODO: improve step similarity with embeddings for thoughts 
+    # TODO: improve step similarity with embeddings for thoughts (create grounds descriptions and target objectives)
     @classmethod
     def _step_similarity(cls, a: BaseModel, b: BaseModel) -> float:
         na, nb = cls._normalize_step(a), cls._normalize_step(b)
@@ -244,56 +244,82 @@ class MetricUtils:
     # ============================================================================ #
 
     @classmethod
-    def correctness_scores(cls, reference: str, workflow: BaseModel) -> None:
-
+    def correctness_scores(cls, reference: str, workflows: List[BaseModel]) -> None:
+        """
+        Evaluate correctness of multiple workflows against a reference specification.
+        
+        Args:
+            reference: Path to JSON file with expected behavior specifications
+            workflows: List of workflow objects to evaluate
+        """
         with open(reference, "r") as ref:
             reference_data = json.load(ref)
         
-        # Expected tool calls
-        tool_count = Counter(step.tool_name for step in workflow.steps if step.action == "call_tool" and step.tool_name)
-        expected_tool_calls = reference_data.get("expected_tool_calls", {})
-
-        tool_scores = []
-        for tool, limits in expected_tool_calls.items(): 
-            count = tool_count.get(tool, 0)
-            tool_scores.append(cls._action_score(count, limits["min"], limits["max"]))
-
-        # Expected LLM calls
-        llm_count = sum(1 for step in workflow.steps if step.action == "call_llm")
-        expected_llm_calls = reference_data.get("expected_llm_calls", {})
-        llm_score = cls._action_score(llm_count, expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf')))
-
-        # Expected total steps
-        total_steps = len(workflow.steps)
-        expected_total_steps = reference_data.get("expected_step_count_range", [])
-        if total_steps >= expected_total_steps[0] and total_steps <= expected_total_steps[1]:
-            step_score = 1
-
-        # Expected branch transitions
-        transition_score = 0
-        branching_nodes = [step for step in workflow.steps if step.transitions and len(step.transitions) > 1]
-        expected_branching = reference_data.get("expected_branch_transitions", {})
-        for _ , constraints in expected_branching.items():
-            keywords = constraints.get("keywords", [])
-            for step in branching_nodes:
-                if any(kw in step.parameters[0].value for kw in keywords):
-                    branch_count = len(step.transitions)
-                    if constraints.get("transitions", 0) == branch_count:
-                        transition_score += 1
+        results = []
         
-        transition_score = transition_score / max(len(branching_nodes), 1)
+        for idx, workflow in enumerate(workflows):
+            # Expected tool calls
+            tool_count = Counter(step.tool_name for step in workflow.steps if step.action == "call_tool" and step.tool_name)
+            expected_tool_calls = reference_data.get("expected_tool_calls", {})
 
-        # Aggregate scores
-        all_scores = tool_scores + [llm_score, step_score, transition_score]
-        overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
+            tool_scores = []
+            for tool, limits in expected_tool_calls.items(): 
+                count = tool_count.get(tool, 0)
+                tool_scores.append(cls._action_score(count, limits["min"], limits["max"]))
 
-        # Print summary
+            # Expected LLM calls
+            llm_count = sum(1 for step in workflow.steps if step.action == "call_llm")
+            expected_llm_calls = reference_data.get("expected_llm_calls", {})
+            llm_score = cls._action_score(llm_count, expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf')))
+
+            # Expected total steps
+            total_steps = len(workflow.steps)
+            expected_total_steps = reference_data.get("expected_step_count_range", [])
+            step_score = 1.0 if (total_steps >= expected_total_steps[0] and total_steps <= expected_total_steps[1]) else 0.0
+
+            # Expected branch transitions
+            transition_score = 0
+            branching_nodes = [step for step in workflow.steps if hasattr(step, "transitions") and len(step.transitions) > 1]
+            if branching_nodes:
+                expected_branching = reference_data.get("expected_branch_transitions", {})
+                for _, constraints in expected_branching.items():
+                    keywords = constraints.get("keywords", [])
+                    for step in branching_nodes:
+                        if any(kw in step.parameters[0].value for kw in keywords):
+                            branch_count = len(step.transitions)
+                            if constraints.get("transitions", 0) == branch_count:
+                                transition_score += 1
+            
+                transition_score = transition_score / max(len(branching_nodes), 1)
+
+            # Overall correctness score
+            all_scores = tool_scores + [llm_score, step_score, transition_score]
+            overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
+            
+            results.append({
+                "workflow_index": idx + 1,
+                "overall_score": overall_score,
+                "tool_scores": tool_scores,
+                "llm_score": llm_score,
+                "step_score": step_score,
+                "transition_score": transition_score
+            })
+
+        # Print summary for all workflows
         print("\nCorrectness Evaluation Results:")
-        print(f"  Overall correctness score: {overall_score:.3f}")
-        print(f"  Tool call scores: {[f'{s:.3f}' for s in tool_scores]}")
-        print(f"  LLM call score: {llm_score:.3f}")
-        print(f"  Total step score: {step_score:.3f}")
-        print(f"  Branch transition score: {transition_score:.3f}\n")
+        for result in results:
+            print(f"\n  Workflow W{result['workflow_index']}:")
+            print(f"    Overall correctness score: {result['overall_score']:.3f}")
+            print(f"    Tool call scores: {[f'{s:.3f}' for s in result['tool_scores']]}")
+            print(f"    LLM call score: {result['llm_score']:.3f}")
+            print(f"    Total step score: {result['step_score']:.3f}")
+            print(f"    Branch transition score: {result['transition_score']:.3f}")
+        
+        # Print aggregate statistics
+        overall_scores = [r['overall_score'] for r in results]
+        print(f"\n  Average overall score: {np.mean(overall_scores):.3f}")
+        print(f"  Min overall score: {np.min(overall_scores):.3f}")
+        print(f"  Max overall score: {np.max(overall_scores):.3f}\n")
 
     @classmethod
     def _action_score(cls, count: int, min_calls: int, max_calls: int) -> float:

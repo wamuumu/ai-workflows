@@ -21,10 +21,8 @@ for file in execution_files:
 # Compute execution similarity score
 MetricUtils.execution_similarity_scores(executions)
 
-exit(0)
-
 # Compute correctness scores against reference constraints
 MetricUtils.correctness_scores(
-    reference="/path/to/constraints.json",
-    workflow=WorkflowUtils.load_workflow("/path/to/workflow.json", StructuredWorkflow)
+    reference="/home/wamuumu/ai-workflows/tests/grounds/weather_activity_plan.json",
+    workflows=workflows
 )
