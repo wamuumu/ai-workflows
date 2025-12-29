@@ -1,10 +1,16 @@
+import os
 import json
 import numpy as np
+import logging
 
-from typing import List
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
 from collections import Counter
+from utils.logger import LoggerUtils
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) 
+LOG_DIR = os.path.join(ROOT, "metrics")
 
 @dataclass
 class StepMatch:
@@ -26,6 +32,7 @@ class MetricUtils:
     
     _metrics: MetricSchema = MetricSchema()
     _has_finished: bool = False
+    _logger = LoggerUtils(name="MetricLogger", log_dir=LOG_DIR, log_to_console=True)
 
     # ============================= Runtime Metrics ============================= # 
 
@@ -48,16 +55,16 @@ class MetricUtils:
 
     @classmethod
     def display(cls) -> None:
-        print("\nOrchestrator Metrics:")
+        cls._logger.log(logging.INFO, "Orchestrator Metrics:")
         dumped_metrics = cls._metrics.model_dump()
         for phase, metrics in dumped_metrics.items():
-            print(f"  {phase.capitalize()}:")
+            cls._logger.log(logging.INFO, f"  {phase.capitalize()}:")
             for metric_name, value in metrics.items():
                 if metric_name == "time_taken":
-                    print(f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
+                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
                 else:
-                    print(f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
-        print(f"    Execution finished: {cls._has_finished}\n")
+                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
+        cls._logger.log(logging.INFO, f"    Execution finished: {cls._has_finished}\n")
     
     @classmethod
     def reset(cls) -> None:
@@ -86,16 +93,29 @@ class MetricUtils:
                 matrix[i, j] = total_score
                 matrix[j, i] = total_score  # symmetric
 
-        cls._print_similarity_matrix(matrix)
+        cls._print_similarity_matrix(matrix, title="Workflow Similarity Matrix")
+
+        # Print additional statistics
+        avg_similarity = np.mean(matrix[np.triu_indices_from(matrix, k=1)])
+        std_similarity = np.std(matrix[np.triu_indices_from(matrix, k=1)])
+        print(f"\nAverage pairwise similarity: {avg_similarity:.3f}")
+        print(f"Standard deviation: {std_similarity:.3f}")
+        print(f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
+        print(f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}\n")
+
+        # Return the workflow with highest average similarity
+        avg_scores = np.mean(matrix, axis=1)
+        best_index = int(np.argmax(avg_scores))
+        print(f"Workflow W{best_index + 1} has the highest average similarity of {avg_scores[best_index]:.3f}\n")
     
     @classmethod
-    def _print_similarity_matrix(cls, matrix: np.ndarray):
+    def _print_similarity_matrix(cls, matrix: np.ndarray, title: str) -> None:
         n = matrix.shape[0]
         col_width = 6  # width for each column
 
         # Print header
         header = " " * (col_width - 1) + "".join([f"W{i+1}".ljust(col_width) for i in range(n)])
-        print("\nWorkflow Similarity Matrix\n")
+        print(f"\n{title}\n")
         print(header)
 
         # Print each row
@@ -128,6 +148,7 @@ class MetricUtils:
             "is_final": data.get("is_final", False),
         }
 
+    # TODO: improve step similarity with embeddings for thoughts 
     @classmethod
     def _step_similarity(cls, a: BaseModel, b: BaseModel) -> float:
         na, nb = cls._normalize_step(a), cls._normalize_step(b)
@@ -282,3 +303,272 @@ class MetricUtils:
             return max_calls / count
         else:
             return 1.0
+    
+    # ============================================================================ #
+    # 3. Execution Result Similarity Scores
+    # For comparing actual execution outputs across multiple runs
+    # ============================================================================ #
+
+    @classmethod
+    def execution_similarity_scores(cls, execution_results: List[Dict[str, Any]]) -> None:
+        """
+        Compute pairwise similarity matrix between execution results.
+        
+        Args:
+            execution_results: List of execution result dictionaries, where each dict
+                              maps step_id -> step_output
+        """
+        n = len(execution_results)
+        matrix = np.zeros((n, n))
+
+        for i in range(n):
+            for j in range(i, n):
+                total_score = cls._execution_result_similarity(
+                    execution_results[i], 
+                    execution_results[j]
+                )
+                matrix[i, j] = total_score
+                matrix[j, i] = total_score
+
+        cls._print_similarity_matrix(matrix, title="Execution Result Similarity Matrix")
+        
+        # Print additional statistics
+        avg_similarity = np.mean(matrix[np.triu_indices_from(matrix, k=1)])
+        std_similarity = np.std(matrix[np.triu_indices_from(matrix, k=1)])
+        print(f"\nAverage pairwise similarity: {avg_similarity:.3f}")
+        print(f"Standard deviation: {std_similarity:.3f}")
+        print(f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
+        print(f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}\n")
+
+    @classmethod
+    def _execution_result_similarity(cls, result_a: Dict[str, Any], result_b: Dict[str, Any]) -> float:
+        """
+        Compare two execution results and return a similarity score.
+        """
+        # Get common step IDs
+        steps_a = set(result_a.keys())
+        steps_b = set(result_b.keys())
+        
+        # Penalize missing/extra steps
+        all_steps = steps_a | steps_b
+        common_steps = steps_a & steps_b
+        
+        if not all_steps:
+            return 1.0  # Both empty
+        
+        step_coverage = len(common_steps) / len(all_steps)
+        
+        # Compare outputs for common steps
+        if not common_steps:
+            return 0.0
+        
+        step_similarities = []
+        for step_id in common_steps:
+            output_a = result_a[step_id]
+            output_b = result_b[step_id]
+            sim = cls._compare_step_outputs(output_a, output_b)
+            step_similarities.append(sim)
+        
+        avg_step_similarity = np.mean(step_similarities)
+        
+        # Weighted combination: 70% output similarity, 30% step coverage
+        total_score = 0.7 * avg_step_similarity + 0.3 * step_coverage
+        
+        return total_score
+
+    @classmethod
+    def _compare_step_outputs(cls, output_a: Any, output_b: Any) -> float:
+        """
+        Compare two step outputs and return a similarity score.
+        Handles dicts, lists, and primitive types.
+        """
+        # Handle None cases
+        if output_a is None and output_b is None:
+            return 1.0
+        if output_a is None or output_b is None:
+            return 0.0
+        
+        # Handle dict outputs (most tool outputs)
+        if isinstance(output_a, dict) and isinstance(output_b, dict):
+            return cls._compare_dicts(output_a, output_b)
+        
+        # Handle list outputs (LLM results, parameter lists)
+        if isinstance(output_a, list) and isinstance(output_b, list):
+            return cls._compare_lists(output_a, output_b)
+        
+        # Handle primitive types
+        if type(output_a) == type(output_b):
+            if isinstance(output_a, (int, float)):
+                # For numeric values, use relative difference
+                if output_a == output_b:
+                    return 1.0
+                max_val = max(abs(output_a), abs(output_b))
+                if max_val == 0:
+                    return 1.0
+                return 1.0 - min(abs(output_a - output_b) / max_val, 1.0)
+            elif isinstance(output_a, str):
+                return cls._compare_strings(output_a, output_b)
+            elif isinstance(output_a, bool):
+                return 1.0 if output_a == output_b else 0.0
+        
+        # Different types or unsupported types
+        return 0.0
+
+    @classmethod
+    def _compare_dicts(cls, dict_a: Dict, dict_b: Dict) -> float:
+        """Compare two dictionaries."""
+        keys_a = set(dict_a.keys())
+        keys_b = set(dict_b.keys())
+        
+        all_keys = keys_a | keys_b
+        common_keys = keys_a & keys_b
+        
+        if not all_keys:
+            return 1.0
+        
+        # Key coverage score
+        key_coverage = len(common_keys) / len(all_keys)
+        
+        # Value similarity for common keys
+        if not common_keys:
+            return 0.0
+        
+        value_similarities = []
+        for key in common_keys:
+            sim = cls._compare_step_outputs(dict_a[key], dict_b[key])
+            value_similarities.append(sim)
+        
+        avg_value_similarity = np.mean(value_similarities)
+        
+        # Weighted: 60% value similarity, 40% key coverage
+        return 0.6 * avg_value_similarity + 0.4 * key_coverage
+
+    @classmethod
+    def _compare_lists(cls, list_a: List, list_b: List) -> float:
+        """Compare two lists."""
+        if not list_a and not list_b:
+            return 1.0
+        if not list_a or not list_b:
+            return 0.0
+        
+        # For lists of dicts (like parameter lists)
+        if all(isinstance(x, dict) for x in list_a + list_b):
+            return cls._compare_list_of_dicts(list_a, list_b)
+        
+        # For lists of primitives
+        if len(list_a) != len(list_b):
+            # Penalize length difference
+            len_penalty = min(len(list_a), len(list_b)) / max(len(list_a), len(list_b))
+            
+            # Compare common elements
+            min_len = min(len(list_a), len(list_b))
+            if min_len == 0:
+                return 0.0
+            
+            element_similarities = []
+            for i in range(min_len):
+                sim = cls._compare_step_outputs(list_a[i], list_b[i])
+                element_similarities.append(sim)
+            
+            avg_similarity = np.mean(element_similarities)
+            return 0.7 * avg_similarity + 0.3 * len_penalty
+        
+        # Same length - compare element by element
+        element_similarities = []
+        for a, b in zip(list_a, list_b):
+            sim = cls._compare_step_outputs(a, b)
+            element_similarities.append(sim)
+        
+        return np.mean(element_similarities)
+
+    @classmethod
+    def _compare_list_of_dicts(cls, list_a: List[Dict], list_b: List[Dict]) -> float:
+        """
+        Compare lists of dictionaries (like parameter lists).
+        Uses key-based matching for better comparison.
+        """
+        if not list_a and not list_b:
+            return 1.0
+        if not list_a or not list_b:
+            return 0.0
+        
+        # Try to match by 'key' field if it exists (for parameter objects)
+        keys_a = {d.get('key'): d for d in list_a if 'key' in d}
+        keys_b = {d.get('key'): d for d in list_b if 'key' in d}
+        
+        if keys_a and keys_b:
+            # Match by key
+            common_keys = set(keys_a.keys()) & set(keys_b.keys())
+            all_keys = set(keys_a.keys()) | set(keys_b.keys())
+            
+            if not all_keys:
+                return cls._compare_lists(list_a, list_b)
+            
+            key_coverage = len(common_keys) / len(all_keys)
+            
+            if not common_keys:
+                return 0.0
+            
+            value_similarities = []
+            for key in common_keys:
+                sim = cls._compare_dicts(keys_a[key], keys_b[key])
+                value_similarities.append(sim)
+            
+            avg_similarity = np.mean(value_similarities)
+            return 0.7 * avg_similarity + 0.3 * key_coverage
+        
+        # Fall back to position-based comparison
+        return cls._compare_lists(list_a, list_b)
+
+    @classmethod
+    def _compare_strings(cls, str_a: str, str_b: str) -> float:
+        """
+        Compare two strings using multiple methods.
+        """
+        if str_a == str_b:
+            return 1.0
+        
+        # Normalize strings
+        str_a_norm = str_a.strip().lower()
+        str_b_norm = str_b.strip().lower()
+        
+        if str_a_norm == str_b_norm:
+            return 0.95
+        
+        # Jaccard similarity on words
+        words_a = set(str_a_norm.split())
+        words_b = set(str_b_norm.split())
+        
+        if not words_a and not words_b:
+            return 1.0
+        if not words_a or not words_b:
+            return 0.0
+        
+        jaccard = len(words_a & words_b) / len(words_a | words_b)
+        
+        # Longest common subsequence ratio
+        lcs_ratio = cls._lcs_similarity(str_a_norm, str_b_norm)
+        
+        # Combine metrics
+        return 0.6 * jaccard + 0.4 * lcs_ratio
+
+    @classmethod
+    def _lcs_similarity(cls, str_a: str, str_b: str) -> float:
+        """
+        Compute similarity based on longest common subsequence.
+        """
+        if not str_a or not str_b:
+            return 0.0
+        
+        m, n = len(str_a), len(str_b)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if str_a[i - 1] == str_b[j - 1]:
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                else:
+                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+        
+        lcs_length = dp[m][n]
+        return 2.0 * lcs_length / (m + n)

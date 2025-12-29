@@ -340,8 +340,8 @@ from utils.workflow import WorkflowUtils
 from utils.metric import MetricUtils
 
 # Load workflows to compare
-workflow1 = WorkflowUtils.load_json("/path/to/workflow1.json", StructuredWorkflow)
-workflow2 = WorkflowUtils.load_json("/path/to/workflow2.json", StructuredWorkflow)
+workflow1 = WorkflowUtils.load_workflow("/path/to/workflow1.json", StructuredWorkflow)
+workflow2 = WorkflowUtils.load_workflow("/path/to/workflow2.json", StructuredWorkflow)
 
 # Compute pairwise similarity matrix
 MetricUtils.similarity_scores([workflow1, workflow2, workflow3])
@@ -371,7 +371,7 @@ W3    0.72  0.68  1.00
 from utils.metric import MetricUtils
 from utils.workflow import WorkflowUtils
 
-workflow = WorkflowUtils.load_json("/path/to/workflow.json", StructuredWorkflow)
+workflow = WorkflowUtils.load_workflow("/path/to/workflow.json", StructuredWorkflow)
 MetricUtils.correctness_scores(
     reference="/path/to/constraints.json",
     workflow=workflow

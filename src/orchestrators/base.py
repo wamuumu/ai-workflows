@@ -16,8 +16,8 @@ from utils.metric import MetricUtils
 from utils.logger import LoggerUtils
 
 class AgentSchema(BaseModel):
-    generator: Optional[AgentBase] = Field(default_factory=CerebrasAgent)
-    discriminator: Optional[AgentBase] = Field(default_factory=CerebrasAgent)
+    generator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    discriminator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
     planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
     chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
     refiner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
@@ -93,8 +93,8 @@ class ConfigurableOrchestrator:
             WorkflowUtils.show(context.workflow)
         
         if save:
-            WorkflowUtils.save_json(context.workflow)
-            WorkflowUtils.save_html(context.workflow)
+            WorkflowUtils.save_workflow(context.workflow)
+            WorkflowUtils.save_visualization(context.workflow)
 
         return context.workflow
     
@@ -123,7 +123,7 @@ class ConfigurableOrchestrator:
             except Exception as e:
                 raise RuntimeError(f"Chat message failed: {e}")
             
-            response_schema = ExecutionResponse.model_validate_json(response)
+            response_schema = ExecutionResponse.model_validate(response)
             payload = response_schema.model_dump()
 
             self.logger.log(logging.INFO, f"Execution response received: {json.dumps(payload, indent=2)}")
@@ -138,9 +138,6 @@ class ConfigurableOrchestrator:
 
             if not current_step:
                 raise ValueError(f"Step ID '{p_step}' not found in workflow.")
-
-            if current_step["is_final"]:
-                break
 
             if p_action == "call_tool":
                 tool_name = payload.get("tool_name")
@@ -191,6 +188,10 @@ class ConfigurableOrchestrator:
                     input("Press Enter to continue or Ctrl+C to exit...")
             else:
                 raise ValueError(f"Unknown action '{p_action}' received during workflow execution.")
+            
+            if current_step["is_final"]:
+                WorkflowUtils.save_execution(step_results)
+                break
         
         MetricUtils.finish()
         self.logger.log(logging.INFO, f"Workflow execution completed.")

@@ -17,6 +17,8 @@ Hard requirements:
 
 Execution rules:
 
+* You MUST execute all the steps in the workflow in the order they are defined.
++ You MUST NOT skip any steps or introduce any branching or transitions not present in the original workflow.
 * Before executing a step, resolve all placeholders of the form {step_X.some_key} in the step's parameters using values from the current `state`.
 * If a referenced step or key does not exist in `state`, return an explicit error object as defined by the response schema and halt execution.
 * For steps with action "call_llm":
@@ -37,7 +39,10 @@ Execution rules:
 
 Failure modes to avoid:
 
+* Do not change the workflow structure or step order.
+* If the workflow doesn't have transitions or branching, do not introduce them.
 * Do not execute external tools directly.
+* Do not change step values or parameters, except to resolve placeholders.
 * Do not skip steps or execute steps out of order.
 * Do not use unresolved or stale placeholder values.
 * Do not output partial JSON or any non-JSON wrapper text.

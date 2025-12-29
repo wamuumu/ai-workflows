@@ -1,6 +1,7 @@
 import os
 import html
 import uuid
+import json
 
 from pyvis.network import Network
 from datetime import datetime
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 WORKFLOWS = os.path.join(ROOT, "data", "workflows")
 VISUALIZATIONS = os.path.join(ROOT, "data", "visualizations")
+EXECUTIONS = os.path.join(ROOT, "data", "executions")
 
 class WorkflowUtils:
     """Utility class for managing workflows."""
@@ -21,7 +23,7 @@ class WorkflowUtils:
         print(workflow.model_dump_json(indent=2))
 
     @classmethod
-    def save_json(cls, workflow: BaseModel) -> str:
+    def save_workflow(cls, workflow: BaseModel) -> str:
         """Save the workflow as a JSON file."""
         
         workflow_json = workflow.model_dump_json(indent=2)
@@ -40,7 +42,7 @@ class WorkflowUtils:
         return file_path
 
     @classmethod
-    def load_json(cls, filepath: str, model: BaseModel) -> BaseModel:
+    def load_workflow(cls, filepath: str, model: BaseModel) -> BaseModel:
         """Load a workflow from a JSON file into the specified model format."""
         
         with open(filepath, "r", encoding="utf-8") as f:
@@ -49,7 +51,7 @@ class WorkflowUtils:
         return model.model_validate_json(workflow_data)
 
     @classmethod
-    def save_html(cls, workflow: BaseModel) -> str:
+    def save_visualization(cls, workflow: BaseModel) -> str:
         """Create a visual representation of the workflow using pyvis."""
         
         workflow_json = workflow.model_dump()
@@ -161,7 +163,35 @@ class WorkflowUtils:
             f.write(html_str)
         
         return file_path
-    
+
+    @classmethod
+    def save_execution(cls, execution_data: dict) -> str:
+        """Save the workflow execution data as a JSON file."""
+        
+        execution_json = json.dumps(execution_data, indent=2)
+        
+        # Create output directory if not exists
+        cls._check_folder(EXECUTIONS)
+
+        # Create timestamped filename
+        filename = cls._get_filename("execution", "json")
+
+        # Write to file
+        file_path = os.path.join(EXECUTIONS, filename)   
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(execution_json)
+        
+        return file_path
+
+    @classmethod
+    def load_execution(cls, filepath: str) -> dict:
+        """Load a workflow execution from a JSON file."""
+        
+        with open(filepath, "r", encoding="utf-8") as f:
+            execution_data = json.load(f)
+
+        return execution_data
+
     @classmethod
     def _check_folder(cls, folder_path: str):
         """Ensure the specified folder exists; create it if it doesn't."""
