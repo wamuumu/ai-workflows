@@ -72,7 +72,7 @@ def main():
 
     # Core run settings
     argparser.add_argument("--runs", type=int, default=1, help="Number of sequential runs to execute (default: 1)")
-    argparser.add_argument("--it", action="store_true", help="Pick a random iteration for user prompt (flag toggles True)")
+    argparser.add_argument("--it", action="store_true", help="Pick a random iteration for user prompt")
     argparser.add_argument("--prompt", type=str, default="weather_activity_plan", help="User prompt name to use")
     argparser.add_argument("--execute", action="store_true", help="Whether to execute the generated / loaded workflow")
 
