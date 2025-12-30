@@ -14,8 +14,6 @@ class Transition(BaseModel):
 class Step(BaseModel):
     """A single step in a structured workflow."""
     id: str = Field(..., description="Unique identifier for the step")
-    title: str = Field(..., description="Title of the step")
-    description: str = Field(..., description="Description of the step")
     action: Literal["call_tool", "call_llm"] = Field(..., description="The action type for this step")
     tool_name: Optional[str] = Field(None, description="Name of the tool to call, ONLY if action is 'call_tool'")
     parameters: Optional[List[Parameter]] = Field(None, description="Parameters for the tool or LLM")

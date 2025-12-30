@@ -13,5 +13,16 @@
         "transitions": 2
     }
   },
-  "expected_step_count_range": [8, 12]
+  "expected_step_count_range": {"min": 8, "max": 12},
+  "expected_goal": "Plan activities based on weather and send a summary email",
+  "expected_thoughts": [
+    "Get the current weather for London for the next 3 days",
+    "Analyze the weather forecast to check for rain",
+    "Find indoor activities in London if it will rain",
+    "Save indoor activities to a file if it will rain",
+    "Find outdoor activities in London if it will not rain",
+    "Save outdoor activities to a file if it will not rain",
+    "Summarize the plan based on the weather and activities",
+    "Send an email summarizing the plan"
+  ]
 }

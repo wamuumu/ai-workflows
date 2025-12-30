@@ -100,9 +100,13 @@ def main():
     args = argparser.parse_args()
 
     # Validate workflow path when loading
-    workflow_path = Path(args.workflow_path)
-    if (not args.generate) and (not workflow_path.exists()):
-        raise FileNotFoundError(f"Workflow path '{workflow_path}' does not exist.")
+    if not args.generate:
+        try:
+            workflow_path = Path(args.workflow_path)
+            if not workflow_path.exists():
+                raise FileNotFoundError(f"Workflow path '{workflow_path}' does not exist.")
+        except:
+            raise ValueError("When not generating a workflow, --workflow-path must be provided and point to a valid file.")
 
     # Prepare orchestrator components
     strategy_instance = _strategy_factory(args.strategy)

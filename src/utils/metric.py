@@ -7,6 +7,8 @@ from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
 from collections import Counter
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 from utils.logger import LoggerUtils
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) 
@@ -98,15 +100,15 @@ class MetricUtils:
         # Print additional statistics
         avg_similarity = np.mean(matrix[np.triu_indices_from(matrix, k=1)])
         std_similarity = np.std(matrix[np.triu_indices_from(matrix, k=1)])
-        print(f"\nAverage pairwise similarity: {avg_similarity:.3f}")
-        print(f"Standard deviation: {std_similarity:.3f}")
-        print(f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
-        print(f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}\n")
+        cls._logger.log(logging.INFO, f"Average pairwise similarity: {avg_similarity:.3f}")
+        cls._logger.log(logging.INFO, f"Standard deviation: {std_similarity:.3f}")
+        cls._logger.log(logging.INFO, f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
+        cls._logger.log(logging.INFO, f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
 
         # Return the workflow with highest average similarity
         avg_scores = np.mean(matrix, axis=1)
         best_index = int(np.argmax(avg_scores))
-        print(f"Workflow W{best_index + 1} has the highest average similarity of {avg_scores[best_index]:.3f}\n")
+        cls._logger.log(logging.INFO, f"Workflow W{best_index + 1} has the highest average similarity of {avg_scores[best_index]:.3f}\n")
     
     @classmethod
     def _print_similarity_matrix(cls, matrix: np.ndarray, title: str) -> None:
@@ -115,13 +117,13 @@ class MetricUtils:
 
         # Print header
         header = " " * (col_width - 1) + "".join([f"W{i+1}".ljust(col_width) for i in range(n)])
-        print(f"\n{title}\n")
-        print(header)
+        cls._logger.log(logging.INFO, title)
+        cls._logger.log(logging.INFO, header)
 
         # Print each row
         for i in range(n):
             row_values = "".join([f"{matrix[i, j]:.2f}".ljust(col_width) for j in range(n)])
-            print(f"W{i+1}".ljust(col_width - 1) + row_values)
+            cls._logger.log(logging.INFO, f"W{i+1}".ljust(col_width - 1) + row_values)
 
     @classmethod
     def _workflow_similarity(cls, a: BaseModel, b: BaseModel, threshold: float = 0.5) -> float:
@@ -148,7 +150,6 @@ class MetricUtils:
             "is_final": data.get("is_final", False),
         }
 
-    # TODO: improve step similarity with embeddings for thoughts (create grounds descriptions and target objectives)
     @classmethod
     def _step_similarity(cls, a: BaseModel, b: BaseModel) -> float:
         na, nb = cls._normalize_step(a), cls._normalize_step(b)
@@ -239,8 +240,8 @@ class MetricUtils:
         return len(ea & eb) / len(ea | eb)
     
     # ============================================================================ #
-    # 2. Correctness Scores
-    # For expected behavior evaluations
+    # 2. Correctness and Resoning / Intent Resolution Scores
+    # Against reference specifications
     # ============================================================================ #
 
     @classmethod
@@ -255,27 +256,37 @@ class MetricUtils:
         with open(reference, "r") as ref:
             reference_data = json.load(ref)
         
+        embeddings = cls._compute_embeddings(workflows)
+
         results = []
-        
         for idx, workflow in enumerate(workflows):
             # Expected tool calls
             tool_count = Counter(step.tool_name for step in workflow.steps if step.action == "call_tool" and step.tool_name)
             expected_tool_calls = reference_data.get("expected_tool_calls", {})
-
+        
             tool_scores = []
             for tool, limits in expected_tool_calls.items(): 
                 count = tool_count.get(tool, 0)
-                tool_scores.append(cls._action_score(count, limits["min"], limits["max"]))
+                min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
+                tool_scores.append(cls._get_score(count, min_calls, max_calls))
 
             # Expected LLM calls
             llm_count = sum(1 for step in workflow.steps if step.action == "call_llm")
             expected_llm_calls = reference_data.get("expected_llm_calls", {})
-            llm_score = cls._action_score(llm_count, expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf')))
+            if expected_llm_calls and len(expected_llm_calls) == 2:
+                min_calls, max_calls = expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf'))
+                llm_score = cls._get_score(llm_count, min_calls, max_calls)
+            else:
+                llm_score = 0.0
 
             # Expected total steps
             total_steps = len(workflow.steps)
             expected_total_steps = reference_data.get("expected_step_count_range", [])
-            step_score = 1.0 if (total_steps >= expected_total_steps[0] and total_steps <= expected_total_steps[1]) else 0.0
+            if expected_total_steps and len(expected_total_steps) == 2:
+                min_steps, max_steps = expected_total_steps.get("min", 0), expected_total_steps.get("max", float('inf'))
+                step_score = cls._get_score(total_steps, min_steps, max_steps)
+            else:
+                step_score = 0.0
 
             # Expected branch transitions
             transition_score = 0
@@ -291,44 +302,103 @@ class MetricUtils:
                                 transition_score += 1
             
                 transition_score = transition_score / max(len(branching_nodes), 1)
+            
+            reference_goal = reference_data.get("expected_goal", "")
+            reference_thoughts = "\n".join(reference_data.get("expected_thoughts", []))
+            goal_score, thoughts_score = cls._embedding_score(embeddings[idx], reference_thoughts, reference_goal)
 
             # Overall correctness score
+            weighted_scores = {
+                "tool": 0.40,
+                "llm": 0.15,
+                "step": 0.25,
+                "transition": 0.20
+            }
+
             all_scores = tool_scores + [llm_score, step_score, transition_score]
             overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
-            
+            overall_weighted_score = (
+                np.mean(tool_scores) * weighted_scores["tool"] + 
+                llm_score * weighted_scores["llm"] +
+                step_score * weighted_scores["step"] +
+                transition_score * weighted_scores["transition"] )
+
             results.append({
                 "workflow_index": idx + 1,
                 "overall_score": overall_score,
+                "overall_weighted_score": overall_weighted_score,
                 "tool_scores": tool_scores,
                 "llm_score": llm_score,
                 "step_score": step_score,
-                "transition_score": transition_score
+                "transition_score": transition_score,
+                "goal_score": goal_score,
+                "thoughts_score": thoughts_score
             })
 
         # Print summary for all workflows
-        print("\nCorrectness Evaluation Results:")
+        cls._logger.log(logging.INFO, "Correctness Evaluation Results:")
         for result in results:
-            print(f"\n  Workflow W{result['workflow_index']}:")
-            print(f"    Overall correctness score: {result['overall_score']:.3f}")
-            print(f"    Tool call scores: {[f'{s:.3f}' for s in result['tool_scores']]}")
-            print(f"    LLM call score: {result['llm_score']:.3f}")
-            print(f"    Total step score: {result['step_score']:.3f}")
-            print(f"    Branch transition score: {result['transition_score']:.3f}")
+            cls._logger.log(logging.INFO, f"  Workflow W{result['workflow_index']}:")
+            cls._logger.log(logging.INFO, f"    Overall correctness score: {result['overall_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Overall weighted correctness score: {result['overall_weighted_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Tool call scores: {[f'{s:.3f}' for s in result['tool_scores']]}")
+            cls._logger.log(logging.INFO, f"    LLM call score: {result['llm_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Total step score: {result['step_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Branch transition score: {result['transition_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Goal similarity score: {result['goal_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}")
         
-        # Print aggregate statistics
+        # cls._logger.log aggregate statistics
         overall_scores = [r['overall_score'] for r in results]
-        print(f"\n  Average overall score: {np.mean(overall_scores):.3f}")
-        print(f"  Min overall score: {np.min(overall_scores):.3f}")
-        print(f"  Max overall score: {np.max(overall_scores):.3f}\n")
+        cls._logger.log(logging.INFO, f"  Average correctness score: {np.mean(overall_scores):.3f}")
+        cls._logger.log(logging.INFO, f"  Min correctness score: {np.min(overall_scores):.3f}")
+        cls._logger.log(logging.INFO, f"  Max correctness score: {np.max(overall_scores):.3f}")
+        cls._logger.log(logging.INFO, f"  Average goal similarity score: {np.mean([r['goal_score'] for r in results]):.3f}")
+        cls._logger.log(logging.INFO, f"  Average thoughts similarity score: {np.mean([r['thoughts_score'] for r in results]):.3f}")
+    
+    @classmethod
+    def _get_score(cls, count: int, min_val: int, max_val: int) -> float:
+        if (count >= min_val and count <= max_val):
+            return 1.0
+        else:
+            step_mean = (min_val + max_val) / 2
+            distance = min(abs(count - min_val), abs(count - max_val))
+            return 1.0 - (distance / step_mean) if step_mean > 0 else 0.0
+    
+    @classmethod
+    def _compute_embeddings(cls, workflows: List[BaseModel]) -> List[np.ndarray]:
+        model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+        embeddings = []
+
+        for workflow in workflows:
+            texts = []
+            if hasattr(workflow, "target_objective"):
+                texts.append(workflow.target_objective)
+            else:
+                texts.append("")
+            
+            thoughts_str = ""
+            for step in workflow.steps:
+                if hasattr(step, "thoughts"):
+                    thoughts_str += "\n" + step.thoughts
+            texts.append(thoughts_str)
+
+            emb = model.encode(texts)
+            embeddings.append(emb)
+        
+        return embeddings
 
     @classmethod
-    def _action_score(cls, count: int, min_calls: int, max_calls: int) -> float:
-        if count < min_calls:
-            return count / min_calls
-        elif count > max_calls:
-            return max_calls / count
-        else:
-            return 1.0
+    def _embedding_score(cls, embedding: np.ndarray, ref_thoughts: str, ref_goal: str) -> tuple[float, float]:
+        model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+
+        ref_thoughts_emb = model.encode([ref_thoughts])
+        ref_goal_emb = model.encode([ref_goal])
+
+        goal_sim = max(0, min(1, cosine_similarity([embedding[0]], ref_goal_emb)[0][0]))
+        thoughts_sim = max(0, min(1, cosine_similarity([embedding[1]], ref_thoughts_emb)[0][0]))
+
+        return goal_sim, thoughts_sim
     
     # ============================================================================ #
     # 3. Execution Result Similarity Scores
@@ -361,10 +431,10 @@ class MetricUtils:
         # Print additional statistics
         avg_similarity = np.mean(matrix[np.triu_indices_from(matrix, k=1)])
         std_similarity = np.std(matrix[np.triu_indices_from(matrix, k=1)])
-        print(f"\nAverage pairwise similarity: {avg_similarity:.3f}")
-        print(f"Standard deviation: {std_similarity:.3f}")
-        print(f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
-        print(f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}\n")
+        cls._logger.log(logging.INFO, f"Average pairwise similarity: {avg_similarity:.3f}")
+        cls._logger.log(logging.INFO, f"Standard deviation: {std_similarity:.3f}")
+        cls._logger.log(logging.INFO, f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
+        cls._logger.log(logging.INFO, f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
 
     @classmethod
     def _execution_result_similarity(cls, result_a: Dict[str, Any], result_b: Dict[str, Any]) -> float:
