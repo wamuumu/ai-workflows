@@ -342,11 +342,12 @@ class MetricUtils:
             cls._logger.log(logging.INFO, f"    Overall correctness score: {result['overall_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Overall weighted correctness score: {result['overall_weighted_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Tool call scores: {[f'{s:.3f}' for s in result['tool_scores']]}")
+            cls._logger.log(logging.INFO, f"    Average tool call score: {np.mean(result['tool_scores']):.3f}" if result['tool_scores'] else "    Average tool call score: N/A")
             cls._logger.log(logging.INFO, f"    LLM call score: {result['llm_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Total step score: {result['step_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Branch transition score: {result['transition_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Goal similarity score: {result['goal_score']:.3f}")
-            cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}")
+            cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}\n")
         
         # cls._logger.log aggregate statistics
         overall_scores = [r['overall_score'] for r in results]
