@@ -1,4 +1,5 @@
 import json
+import time
 import logging
 
 from pydantic import BaseModel, Field, field_serializer
@@ -70,32 +71,56 @@ class ConfigurableOrchestrator:
         self.post_features = [f for f in features if f.get_phase() == "post"]
         self.logger = LoggerUtils()
     
-    def generate(self, user_prompt: str, response_model: BaseModel, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
+    def generate(self, user_prompt: str, response_model: BaseModel, max_retries: int = 5, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
         
         self.logger.log(logging.INFO, f"Workflow generation started...")
         context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt, available_tools=self.available_tools)
         self.logger.log(logging.INFO, f"Initial context: {context.model_dump_json(indent=2)}")
         
         for feature in self.pre_features:
-            context: Context = feature.apply(context, debug)
-            self.logger.log(logging.INFO, f"Context after pre-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
+            try:
+                context: Context = feature.apply(context, debug)
+                self.logger.log(logging.INFO, f"Context after pre-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
+            except Exception as e:
+                self.logger.log(logging.ERROR, f"Error applying pre-feature '{feature.__class__.__name__}': {e}")
+                raise RuntimeError(f"Error applying pre-feature '{feature.__class__.__name__}': {e}")
 
-        context.workflow = self.strategy.generate(context, debug)
-        self.logger.log(logging.INFO, f"Context after strategy generation: {context.model_dump_json(indent=2)}")
+        retry = 0
+        while retry < max_retries:
+            try:
+                context.workflow = self.strategy.generate(context, debug)
+                break
+            except Exception as e:
+                retry += 1
+                retry_time = 2 ** retry
+                self.logger.log(logging.ERROR, f"Error during strategy generation: {e}. Retrying {retry}/{max_retries} in {retry_time} seconds...")
+                time.sleep(retry_time)
+        
+        self.logger.log(logging.INFO, f"Generated workflow: {context.workflow.model_dump_json(indent=2)}")
 
         for feature in self.post_features:
-            context: Context = feature.apply(context, debug)
-            self.logger.log(logging.INFO, f"Context after post-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
+            try:
+                context: Context = feature.apply(context, debug)
+                self.logger.log(logging.INFO, f"Context after post-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
+            except Exception as e:
+                self.logger.log(logging.ERROR, f"Error applying post-feature '{feature.__class__.__name__}': {e}")
+                raise RuntimeError(f"Error applying post-feature '{feature.__class__.__name__}': {e}")
         
         self.logger.log(logging.INFO, f"Workflow generation completed.")
 
         if show:
-            WorkflowUtils.show(context.workflow)
-        
-        if save:
-            WorkflowUtils.save_workflow(context.workflow)
-            WorkflowUtils.save_visualization(context.workflow)
+            try:
+                WorkflowUtils.show(context.workflow)
+            except Exception as e:
+                self.logger.log(logging.ERROR, f"Error showing workflow: {e}")
 
+        if save:
+            try:
+                WorkflowUtils.save_workflow(context.workflow)
+                WorkflowUtils.save_visualization(context.workflow)
+            except Exception as e:
+                self.logger.log(logging.ERROR, f"Error saving workflow: {e}")
+        
         return context.workflow
     
     def run(self, workflow: BaseModel, debug: bool = False) -> None:
@@ -122,11 +147,13 @@ class ConfigurableOrchestrator:
             try:
                 response = chat_session.send_message(next_message, category="execution")
             except Exception as e:
+                self.logger.log(logging.ERROR, f"Error during workflow execution: {e}")
                 raise RuntimeError(f"Error during workflow execution: {e}")
             
             try:
                 response_schema = ExecutionResponse.model_validate(response)
             except Exception as e:
+                self.logger.log(logging.ERROR, f"Invalid execution response schema: {e}")
                 raise ValueError(f"Invalid execution response schema: {e}")
 
             payload = response_schema.model_dump()
@@ -142,6 +169,7 @@ class ConfigurableOrchestrator:
             current_step = next((step for step in workflow_obj["steps"] if step["id"] == step_id), None)
 
             if current_step is None:
+                self.logger.log(logging.ERROR, f"Step with ID '{step_id}' not found in the workflow.")
                 raise ValueError(f"Step with ID '{step_id}' not found in the workflow.")
             
             if step_action == "call_tool":
@@ -152,10 +180,13 @@ class ConfigurableOrchestrator:
                     print(f"Calling tool '{tool_name}' with params: {tool_params}\n")
                     input("Press Enter to continue or Ctrl+C to exit...")
                 
-                tool = ToolRegistry.get(tool_name)
-                results = tool.run(**tool_params)
-                
-                self.logger.log(logging.INFO, f"Tool '{tool_name}' for step '{step_id}' executed with results: {json.dumps(results, indent=2)}")
+                try:
+                    tool = ToolRegistry.get(tool_name)
+                    results = tool.run(**tool_params)
+                    self.logger.log(logging.INFO, f"Tool '{tool_name}' for step '{step_id}' executed with results: {json.dumps(results, indent=2)}")
+                except Exception as e:
+                    self.logger.log(logging.ERROR, f"Error executing tool '{tool_name}': {e}")
+                    raise RuntimeError(f"Error executing tool '{tool_name}': {e}")
                 
                 state[step_id] = results
                 next_message = json.dumps({
@@ -179,11 +210,15 @@ class ConfigurableOrchestrator:
                     print(f"LLM action for step '{step_id}' with response: {response}\n")
                     input("Press Enter to continue or Ctrl+C to exit...")
             else:
+                self.logger.log(logging.ERROR, f"Unknown action '{step_action}' received during workflow execution.")
                 raise ValueError(f"Unknown action '{step_action}' received during workflow execution.")
             
             if current_step.get("is_final"):
-                WorkflowUtils.save_execution(state)
-                break
+                try:
+                    WorkflowUtils.save_execution(state)
+                    break
+                except Exception as e:
+                    self.logger.log(logging.ERROR, f"Error saving workflow: {e}")
         
         MetricUtils.finish()
         self.logger.log(logging.INFO, f"Workflow execution completed.")
