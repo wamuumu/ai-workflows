@@ -56,9 +56,10 @@ class MetricUtils:
         cls._has_finished = True
 
     @classmethod
-    def display(cls) -> None:
+    def display(cls) -> List[str]:
         cls._logger.log(logging.INFO, "Orchestrator Metrics:")
         dumped_metrics = cls._metrics.model_dump()
+        formatted_metrics = ["", ""]
         for phase, metrics in dumped_metrics.items():
             cls._logger.log(logging.INFO, f"  {phase.capitalize()}:")
             for metric_name, value in metrics.items():
@@ -66,8 +67,29 @@ class MetricUtils:
                     cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
                 else:
                     cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
+            if( phase == "generation"):
+                formatted_metrics[0] += f"{metrics['time_taken']:.2f}, "
+                formatted_metrics[0] += f"{metrics['number_of_calls']}, "
+                formatted_metrics[0] += f"{metrics['total_tokens']} "
+            elif( phase == "execution"):
+                formatted_metrics[1] += f"{metrics['time_taken']:.2f}, "
+                formatted_metrics[1] += f"{metrics['number_of_calls']}, "
+                formatted_metrics[1] += f"{metrics['total_tokens']} "
+        
         cls._logger.log(logging.INFO, f"    Execution finished: {cls._has_finished}\n")
-    
+        return formatted_metrics
+
+    @classmethod
+    def display_formatted_metrics(cls, metrics:List[List[str]]) -> None:
+        cls._logger.log(logging.INFO, f" Formatted Generation Metrics:")
+        for line in metrics:            
+            cls._logger.log(logging.INFO, f"{(line[0])}")
+        cls._logger.log(logging.INFO, "\n")
+        cls._logger.log(logging.INFO, f" Formatted Execution Metrics:")
+        for line in metrics:            
+            cls._logger.log(logging.INFO, f"{(line[1])}")
+        cls._logger.log(logging.INFO, "\n")
+            
     @classmethod
     def reset(cls) -> None:
         """Reset metrics for a new run."""
@@ -290,7 +312,7 @@ class MetricUtils:
 
             # Expected branch transitions
             transition_score = 0
-            branching_nodes = [step for step in workflow.steps if hasattr(step, "transitions") and len(step.transitions) > 1]
+            branching_nodes = [step for step in workflow.steps if hasattr(step, "transitions") and step.transitions and len(step.transitions) > 1]
             if branching_nodes:
                 expected_branching = reference_data.get("expected_branch_transitions", {})
                 for _, constraints in expected_branching.items():
@@ -348,6 +370,18 @@ class MetricUtils:
             cls._logger.log(logging.INFO, f"    Branch transition score: {result['transition_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Goal similarity score: {result['goal_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}\n")
+        temp_texts = ["","","","","","\n",""]
+        cls._logger.log(logging.INFO, f"    Formatted data:")
+        for result in results:
+            temp_texts[0]+=(f"{np.mean(result['tool_scores']):.3f}, ")
+            temp_texts[1]+=(f"{result['llm_score']:.3f}, ")
+            temp_texts[2]+=(f"{result['step_score']:.3f}, ")
+            temp_texts[3]+=(f"{result['transition_score']:.3f}, ")
+            temp_texts[4]+=(f"{result['overall_weighted_score']:.3f}, ")
+            temp_texts[5]+=(f"{result['goal_score']:.3f}, ")
+            temp_texts[6]+=(f"{result['thoughts_score']:.3f}, ")
+        for line in temp_texts:
+            cls._logger.log(logging.INFO, "\n " + "".join(line)[:-2])
         
         # cls._logger.log aggregate statistics
         overall_scores = [r['overall_score'] for r in results]

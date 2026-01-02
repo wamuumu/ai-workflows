@@ -115,6 +115,7 @@ def main():
     selected_features = _features_factory(args)
 
     iterations_idx = []
+    formatted_metrics = []
     for run in range(args.runs):
         print(f"\n{'='*40}\nRun {run + 1} of {args.runs}\n{'='*40}\n")
 
@@ -149,7 +150,10 @@ def main():
 
         # Display metrics (if requested)
         if args.display_metrics:
-            MetricUtils.display()
+            formatted_metrics.append(MetricUtils.display())
+    
+    if args.display_metrics:
+        MetricUtils.display_formatted_metrics(formatted_metrics)
 
 if __name__ == "__main__":
     main()
