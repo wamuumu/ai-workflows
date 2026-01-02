@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, model_validator
-from typing import List, Union, Literal, Optional
+from pydantic import BaseModel, Field
+from typing import List, Union, Literal
 
 class Parameter(BaseModel):
     """An object representing a parameter item in a workflow step."""
@@ -11,29 +11,31 @@ class Transition(BaseModel):
     condition: str = Field(..., description="Condition for this transition")
     next_step: str = Field(..., description="The step ID to transition to")
 
-class Step(BaseModel):
-    """A single step in a structured workflow."""
+class BaseStep(BaseModel):
+    """Base class for a workflow step."""
     id: str = Field(..., description="Unique identifier for the step")
-    action: Literal["call_tool", "call_llm"] = Field(..., description="The action type for this step")
-    tool_name: Optional[str] = Field(None, description="Name of the tool to call, ONLY if action is 'call_tool'")
-    parameters: Optional[List[Parameter]] = Field(None, description="Parameters for the tool or LLM")
-    transitions: Optional[List[Transition]] = Field(None, description="Transitions for the steps")
-    is_final: bool = Field(False, description="Indicates if this is the final step in the workflow")
     thoughts: str = Field(..., description="The agent's thoughts or reasoning for this step")
 
-    @model_validator(mode="after")
-    def validate_step(self):
-        if self.is_final and self.transitions:
-            raise ValueError("Final steps cannot have transitions.")
-        elif self.action == "call_tool" and not self.tool_name:
-            raise ValueError("tool_name must be provided when action is 'call_tool'")
-        elif self.action == "call_llm" and self.tool_name is not None:
-            raise ValueError("tool_name must be None when action is 'call_llm'")
-        return self
+class ToolStep(BaseStep):
+    """A single tool step in a linear workflow."""
+    action: Literal["call_tool"] = "call_tool"
+    tool_name: str = Field(..., description="Name of the tool to call")
+    parameters: List[Parameter] = Field(..., description="Input parameters for the tool function")
+    transitions: List[Transition] = Field(..., description="Transitions for the steps")
+
+class LLMStep(BaseStep):
+    """A single LLM step in a linear workflow."""
+    action: Literal["call_llm"] = "call_llm"
+    prompt: str = Field(..., description="The prompt to send to the LLM")
+    transitions: List[Transition] = Field(..., description="Transitions for the steps")
+
+class FinalStep(BaseStep):
+    """The final step in a workflow."""
+    is_final: Literal[True] = True
 
 class StructuredWorkflow(BaseModel):
     """A structured workflow consisting of a sequence of steps and allowing branching."""
     title: str = Field(..., description="Title of the structured workflow")
     description: str = Field(..., description="Description of the structured workflow")
     target_objective: str = Field(..., description="The intended objective based on the user prompt")
-    steps: List[Step] = Field(..., description="List of steps in the structured workflow")
+    steps: List[Union[ToolStep, LLMStep, FinalStep]] = Field(..., description="List of steps in the structured workflow")

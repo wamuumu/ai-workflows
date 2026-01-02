@@ -16,7 +16,7 @@ from utils.metric import MetricUtils
 from utils.logger import LoggerUtils
 
 class AgentSchema(BaseModel):
-    generator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    generator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
     discriminator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
     planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
     chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
@@ -102,13 +102,14 @@ class ConfigurableOrchestrator:
 
         self.logger.log(logging.INFO, f"Workflow execution started...")
 
+        workflow_json = workflow.model_dump_json()
+        workflow_obj = json.loads(workflow_json)
+
         if debug:
             print("Running workflow...")
             input("Press Enter to continue or Ctrl+C to exit...")
 
-        step_results = {}
-        workflow_json = workflow.model_dump_json()
-        workflow_obj = json.loads(workflow_json)
+        state = {}
         execution_prompt = PromptUtils.get_system_prompt("workflow_execution")
 
         if not self.agents.executor:
@@ -121,76 +122,67 @@ class ConfigurableOrchestrator:
             try:
                 response = chat_session.send_message(next_message, category="execution")
             except Exception as e:
-                raise RuntimeError(f"Chat message failed: {e}")
+                raise RuntimeError(f"Error during workflow execution: {e}")
             
-            response_schema = ExecutionResponse.model_validate(response)
-            payload = response_schema.model_dump()
+            try:
+                response_schema = ExecutionResponse.model_validate(response)
+            except Exception as e:
+                raise ValueError(f"Invalid execution response schema: {e}")
 
+            payload = response_schema.model_dump()
             self.logger.log(logging.INFO, f"Execution response received: {json.dumps(payload, indent=2)}")
             
             if debug:
                 print("Response received:", json.dumps(payload, indent=2), "\n")
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            p_step = payload.get("step_id")
-            p_action = payload.get("action")
-            current_step = next((step for step in workflow_obj["steps"] if step["id"] == p_step), None)
+            step = payload.get("step")
+            step_id = step.get("id")
+            step_action = step.get("action")
+            current_step = next((step for step in workflow_obj["steps"] if step["id"] == step_id), None)
 
-            if not current_step:
-                raise ValueError(f"Step ID '{p_step}' not found in workflow.")
-
-            if p_action == "call_tool":
-                tool_name = payload.get("tool_name")
-                tool_params = {p["key"]: p["value"] for p in payload.get("tool_parameters", [])}
+            if current_step is None:
+                raise ValueError(f"Step with ID '{step_id}' not found in the workflow.")
+            
+            if step_action == "call_tool":
+                tool_name = step.get("tool_name")
+                tool_params = {p["key"]: p["value"] for p in step.get("tool_parameters")}
 
                 if debug:
                     print(f"Calling tool '{tool_name}' with params: {tool_params}\n")
                     input("Press Enter to continue or Ctrl+C to exit...")
                 
                 tool = ToolRegistry.get(tool_name)
+                results = tool.run(**tool_params)
                 
-                retry = False
-                try:
-                    results = tool.run(**tool_params)
-                except Exception as e:
-                    results = { "error": str(e) }
-                    retry = True
+                self.logger.log(logging.INFO, f"Tool '{tool_name}' for step '{step_id}' executed with results: {json.dumps(results, indent=2)}")
                 
-                self.logger.log(logging.INFO, f"Tool '{tool_name}' for step '{p_step}' executed with results: {json.dumps(results, indent=2)}")
-                
-                step_results[p_step] = results
+                state[step_id] = results
                 next_message = json.dumps({
-                    "step_id": p_step,
-                    "tool_results": results,
-                    "state": step_results,
-                    "resume": True,
-                    "retry": retry
+                    "state": state
                 })
                 
                 if debug:
                     print(f"Tool '{tool_name}' returned results: {results}\n")
                     input("Press Enter to continue or Ctrl+C to exit...")
-            elif p_action == "call_llm":
-                results = payload.get("llm_results")
+            elif step_action == "call_llm":
+                response = step.get("response")
 
-                self.logger.log(logging.INFO, f"LLM action for step '{p_step}' with results: {json.dumps(results, indent=2)}")
+                self.logger.log(logging.INFO, f"LLM action for step '{step_id}' with response: {response}")
 
-                step_results[p_step] = results
+                state[step_id] = response
                 next_message = json.dumps({
-                    "step_id": p_step,
-                    "llm_results": results,
-                    "state": step_results,
-                    "resume": True
+                    "state": state
                 })
 
                 if debug:
-                    print(f"LLM action for step '{p_step}' with results: {results}\n")
+                    print(f"LLM action for step '{step_id}' with response: {response}\n")
                     input("Press Enter to continue or Ctrl+C to exit...")
             else:
-                raise ValueError(f"Unknown action '{p_action}' received during workflow execution.")
+                raise ValueError(f"Unknown action '{step_action}' received during workflow execution.")
             
-            if current_step["is_final"]:
-                WorkflowUtils.save_execution(step_results)
+            if current_step.get("is_final"):
+                WorkflowUtils.save_execution(state)
                 break
         
         MetricUtils.finish()

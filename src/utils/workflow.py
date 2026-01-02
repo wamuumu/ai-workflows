@@ -108,23 +108,33 @@ class WorkflowUtils:
 
         # Add nodes
         for step in workflow_json["steps"]:
-
-            if step["action"] == "call_tool":
+            
+            is_final = "is_final" in step and step["is_final"]
+            if is_final:
+                task_type = "Final Step"
+                color = "#ef4444"  # Red for final steps
+            elif step["action"] == "call_tool":
                 tool_name = step["tool_name"]
+                tool_parameters = "\n".join(f"{html.escape(p['key'])}: {html.escape(str(p['value']))}" for p in step["parameters"]) or "None"
                 task_type = f"Tool({tool_name})"
                 color = "#3b82f6"  # Blue for tools
             else:
                 task_type = "LLM call"
+                prompt = step["prompt"]
                 color = "#8b5cf6"  # Purple for LLM calls
-
-            params = step["parameters"] or []
-            params_text = "\n".join(f"{html.escape(p['key'])}: {html.escape(str(p['value']))}" for p in params) or "None"
+            
+            if step["id"] == "step_1":
+                color = "#10b981"  # Green for the first step
 
             title = (
                 f"{step['id']}\n"
                 f"Type: {task_type}\n\n"
-                f"Parameters:\n{params_text}\n\n"
             )
+
+            if not is_final and step["action"] == "call_tool":
+                title += f"Tool Name: {html.escape(tool_name)}\nParameters:\n{tool_parameters}\n\n"
+            elif not is_final and step["action"] == "call_llm":
+                title += f"Prompt:\n{html.escape(prompt)}\n\n"
 
             net.add_node(
                 step["id"],
@@ -135,20 +145,18 @@ class WorkflowUtils:
             )
 
         # Add edges
-        has_transitions = any("transitions" in step for step in workflow_json["steps"])
-        if has_transitions:
-            # Non-linear workflow with explicit transitions
+        if workflow.__class__.__name__ == "StructuredWorkflow":
             for step in workflow_json["steps"]:
-                transitions = step["transitions"] or []
-                if len(transitions) == 1:
-                    net.add_edge(step["id"], transitions[0]["next_step"])
-                else:
-                    for transition in transitions:
+                is_final = "is_final" in step and step["is_final"]
+                if not is_final:
+                    for transition in step["transitions"]:
                         net.add_edge(step["id"], transition["next_step"], label=transition["condition"])
         else:
             # Linear workflow
             for i in range(len(workflow_json["steps"]) - 1):
-                net.add_edge(workflow_json["steps"][i]["id"], workflow_json["steps"][i + 1]["id"])
+                is_final = "is_final" in workflow_json["steps"][i] and workflow_json["steps"][i]["is_final"]
+                if not is_final:
+                    net.add_edge(workflow_json["steps"][i]["id"], workflow_json["steps"][i + 1]["id"])
     
         # Create output directory if not exists
         cls._check_folder(VISUALIZATIONS)
