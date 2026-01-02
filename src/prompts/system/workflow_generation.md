@@ -29,6 +29,17 @@ Given a user request, generate a complete, executable workflow in JSON that **st
 - The output of a call_llm step is **unstructured text**.
 - Use *call_llm* whenever interpretation, reasoning, classification, analysis, or planning is required.
 
+## Control-flow rules
+
+### LinearWorkflow
+- There MUST be exactly one `FinalStep` at the end of the workflow.
+- No branching is allowed; each step MUST directly lead to the next sequential step.
+
+### StructuredWorkflow
+- Steps MUST define explicit transitions for all possible outcomes.
+- There can be multiple `FinalStep`s, each at the end of a distinct branch.
+- Never rely on implicit or default behavior.
+
 ## Referencing rules
 - Each step `parameter` or `prompt` MAY reference step outputs as needed.
 - Steps can ONLY reference prior steps outputs.
@@ -63,6 +74,7 @@ Given a user request, generate a complete, executable workflow in JSON that **st
 - Implicit control flow
 - Partial JSON or any non-JSON output
 - Using funcitons, operations, or conditions as input parameters
+- Each step should have at least a parent step unless it is the first step
 
 ## Goal
 Return a fully specified, unambiguous, executable JSON workflow that strictly adheres to the provided schema and correctly implements the user’s request.

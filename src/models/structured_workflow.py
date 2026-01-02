@@ -38,4 +38,5 @@ class StructuredWorkflow(BaseModel):
     title: str = Field(..., description="Title of the structured workflow")
     description: str = Field(..., description="Description of the structured workflow")
     target_objective: str = Field(..., description="The intended objective based on the user prompt")
+    type: Literal["structured"] = "structured"
     steps: List[Union[ToolStep, LLMStep, FinalStep]] = Field(..., description="List of steps in the structured workflow")

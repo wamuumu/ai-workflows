@@ -21,6 +21,10 @@ class LLMStep(BaseStep):
     action: Literal["call_llm"] = "call_llm"
     response: str = Field(..., description="The LLM response content")
 
+class FinalStep(BaseStep):
+    """The final step in a workflow."""
+    is_final: Literal[True] = True
+
 class ExecutionResponse(BaseModel):
     """An execution response representing a single step in the workflow execution."""
-    step: Union[ToolStep, LLMStep] = Field(..., description="The executed step details")
+    step: Union[ToolStep, LLMStep, FinalStep] = Field(..., description="The executed step details")

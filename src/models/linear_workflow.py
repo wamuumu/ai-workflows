@@ -31,4 +31,5 @@ class LinearWorkflow(BaseModel):
     title: str = Field(..., description="Title of the linear workflow")
     description: str = Field(..., description="Description of the linear workflow")
     target_objective: str = Field(..., description="The intended objective based on the user prompt")
+    type: Literal["linear"] = "linear"
     steps: List[Union[ToolStep, LLMStep, FinalStep]] = Field(..., description="List of steps in the linear workflow")
