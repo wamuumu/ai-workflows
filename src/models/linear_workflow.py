@@ -27,4 +27,5 @@ class LinearWorkflow(BaseModel):
     """A linear workflow consisting of a sequence of steps."""
     title: str = Field(..., description="Title of the linear workflow")
     description: str = Field(..., description="Description of the linear workflow")
+    target_objective: str = Field(..., description="The intended objective based on the user prompt")
     steps: List[Step] = Field(..., description="List of steps in the linear workflow")

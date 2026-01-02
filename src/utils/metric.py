@@ -435,7 +435,7 @@ class MetricUtils:
         cls._logger.log(logging.INFO, f"Average pairwise similarity: {avg_similarity:.3f}")
         cls._logger.log(logging.INFO, f"Standard deviation: {std_similarity:.3f}")
         cls._logger.log(logging.INFO, f"Min similarity: {np.min(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
-        cls._logger.log(logging.INFO, f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}")
+        cls._logger.log(logging.INFO, f"Max similarity: {np.max(matrix[np.triu_indices_from(matrix, k=1)]):.3f}\n")
 
     @classmethod
     def _execution_result_similarity(cls, result_a: Dict[str, Any], result_b: Dict[str, Any]) -> float:
