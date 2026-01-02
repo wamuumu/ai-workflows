@@ -74,7 +74,7 @@ Given a user request, generate a complete, executable workflow in JSON that **st
 - Implicit control flow
 - Partial JSON or any non-JSON output
 - Using funcitons, operations, or conditions as input parameters
-- Each step should have at least a parent step unless it is the first step
+- Not having a parent step unless it's the first step
 
 ## Goal
 Return a fully specified, unambiguous, executable JSON workflow that strictly adheres to the provided schema and correctly implements the user’s request.
