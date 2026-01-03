@@ -6,7 +6,6 @@ import torch
 
 from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
-from dataclasses import dataclass
 from collections import Counter
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -14,12 +13,6 @@ from utils.logger import LoggerUtils
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) 
 LOG_DIR = os.path.join(ROOT, "metrics")
-
-@dataclass
-class StepMatch:
-    step_a_id: str
-    step_b_id: str
-    similarity: float
 
 class MetricSet(BaseModel):
     time_taken: float = 0
@@ -36,68 +29,9 @@ class MetricUtils:
     _metrics: MetricSchema = MetricSchema()
     _has_finished: bool = False
     _logger = LoggerUtils(name="MetricLogger", log_dir=LOG_DIR, log_to_console=True)
-    _embeddings: dict[str, np.ndarray] = {}
-    _similarities: dict[Tuple, float] = {}
+    _embeddings: Dict[str, np.ndarray] = {}
+    _similarities: Dict[Tuple, float] = {}
     _embedding_model: SentenceTransformer = None
-
-    # ============================= Runtime Metrics ============================= # 
-
-    @classmethod
-    def update(cls, category: str, start_time: float, end_time: float, tokens: int) -> None:
-
-        fields = MetricSchema.model_fields
-
-        if category not in fields:
-            raise ValueError(f"Invalid metric type: {category}. Valid types are: {list(fields.keys())}")
-        
-        metric_set: MetricSet = getattr(cls._metrics, category)
-        metric_set.time_taken += end_time - start_time
-        metric_set.number_of_calls += 1
-        metric_set.total_tokens += tokens
-    
-    @classmethod
-    def finish(cls) -> None:
-        cls._has_finished = True
-
-    @classmethod
-    def display(cls) -> List[str]:
-        cls._logger.log(logging.INFO, "Orchestrator Metrics:")
-        dumped_metrics = cls._metrics.model_dump()
-        formatted_metrics = ["", ""]
-        for phase, metrics in dumped_metrics.items():
-            cls._logger.log(logging.INFO, f"  {phase.capitalize()}:")
-            for metric_name, value in metrics.items():
-                if metric_name == "time_taken":
-                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
-                else:
-                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
-            if( phase == "generation"):
-                formatted_metrics[0] += f"{metrics['time_taken']:.2f}, "
-                formatted_metrics[0] += f"{metrics['number_of_calls']}, "
-                formatted_metrics[0] += f"{metrics['total_tokens']} "
-            elif( phase == "execution"):
-                formatted_metrics[1] += f"{metrics['time_taken']:.2f}, "
-                formatted_metrics[1] += f"{metrics['number_of_calls']}, "
-                formatted_metrics[1] += f"{metrics['total_tokens']} "
-        
-        cls._logger.log(logging.INFO, f"    Execution finished: {cls._has_finished}\n")
-        return formatted_metrics
-
-    @classmethod
-    def display_formatted_metrics(cls, metrics:List[List[str]]) -> None:
-        cls._logger.log(logging.INFO, f" Formatted Generation Metrics:")
-        for line in metrics:            
-            cls._logger.log(logging.INFO, f"{(line[0])}")
-        cls._logger.log(logging.INFO, "\n")
-        cls._logger.log(logging.INFO, f" Formatted Execution Metrics:")
-        for line in metrics:            
-            cls._logger.log(logging.INFO, f"{(line[1])}")
-        cls._logger.log(logging.INFO, "\n")
-            
-    @classmethod
-    def reset(cls) -> None:
-        """Reset metrics for a new run."""
-        cls._metrics = MetricSchema()
     
 
     # ============================ Evaluation Metrics ============================ #
@@ -199,7 +133,7 @@ class MetricUtils:
         _, _, _, step_score = cls._align_steps(a.steps, b.steps)
 
         # Compare transitions
-        transition_score = cls._transition_similarity(a, b)
+        transition_score = cls._compare_transitions(a.steps, b.steps)
 
         # Weighted: 70% steps, 30% transitions
         return 0.7 * step_score + 0.3 * transition_score
@@ -267,29 +201,41 @@ class MetricUtils:
         return score / weight if weight else 0.0
 
     @classmethod
-    def _transition_similarity(cls, a: BaseModel, b: BaseModel) -> float:
-        ea = cls._transition_edges(a)
-        eb = cls._transition_edges(b)
-
-        if not ea and not eb:
-            return 1.0  # linear workflows
-        if not ea or not eb:
+    def _compare_transitions(cls, steps_a: List[BaseModel], steps_b: List[BaseModel]) -> float:
+        """
+        Compare transition edges, including conditions.
+        """
+        edges_a = cls._extract_transitions(steps_a)
+        edges_b = cls._extract_transitions(steps_b)
+        
+        if not edges_a and not edges_b:
+            return 1.0
+        if not edges_a or not edges_b:
             return 0.0
 
-        return len(ea & eb) / len(ea | eb)
+        total = 0.0
+        for e_a in edges_a:
+            best_sim = 0.0
+            for e_b in edges_b:
+                from_sim = 1.0 if e_a[0] == e_b[0] else 0.0
+                to_sim = 1.0 if e_a[1] == e_b[1] else 0.0
+                cond_sim = cls._string_embedding_score(e_a[2], e_b[2])
+                sim = 0.4 * from_sim + 0.4 * to_sim + 0.2 * cond_sim
+                if sim > best_sim:
+                    best_sim = sim
+            total += best_sim
+        return total / max(len(edges_a), len(edges_b))
 
     @classmethod
-    def _transition_edges(cls, workflow: BaseModel) -> set[tuple[str, str]]:
-        edges = set()
-
-        for step in getattr(workflow, "steps", []):
-            transitions = getattr(step, "transitions", None)
-            if not transitions:
-                continue
-
-            for t in transitions:
-                edges.add((step.id, t.next_step))
-
+    def _extract_transitions(cls, steps: List[BaseModel]) -> List[Tuple[str, str, str]]:
+        """
+        Return list of (from_step_id, to_step_id, condition) for comparison.
+        """
+        edges = []
+        for step in steps:
+            transitions = getattr(step, "transitions", [])
+            for t in transitions or []:
+                edges.append((step.id, t.next_step, t.condition))
         return edges
     
     # ============================================================================ #
@@ -308,8 +254,6 @@ class MetricUtils:
         """
         with open(reference, "r") as ref:
             reference_data = json.load(ref)
-        
-        # embeddings = cls._compute_embeddings(workflows)
 
         results = []
         for idx, workflow in enumerate(workflows):
@@ -357,14 +301,11 @@ class MetricUtils:
                 transition_score = transition_score / max(len(branching_nodes), 1)
             
             reference_goal = reference_data.get("expected_goal", "")
-            reference_thoughts = "\n".join(reference_data.get("expected_thoughts", []))
             goal_score = cls._string_embedding_score(workflow.target_objective, reference_goal)
-            thoughts_score = cls._string_embedding_score(
-                "\n".join(step.thoughts for step in workflow.steps if hasattr(step, "thoughts")),
-                reference_thoughts
-            )
-
-            # goal_score, thoughts_score = cls._embedding_score(embeddings[idx], reference_thoughts, reference_goal)
+            
+            reference_thoughts = "\n".join(reference_data.get("expected_thoughts", []))
+            workflow_thoughts = "\n".join(step.thoughts for step in workflow.steps if not hasattr(step, "is_final"))
+            thoughts_score = cls._string_embedding_score(workflow_thoughts, reference_thoughts)
 
             # Overall correctness score
             weighted_scores = {
@@ -636,3 +577,65 @@ class MetricUtils:
         coverage = matched_count / total_steps if total_steps > 0 else 1.0
         avg_output_sim = float(np.mean(matched_sims)) if matched_sims else 0.0
         return weight_output * avg_output_sim + weight_coverage * coverage
+
+    # ============================================================================ #
+    # 4. Efficiency Metrics
+    # For tracking time, number of calls and token usage
+    # ============================================================================ #
+
+    @classmethod
+    def update(cls, category: str, start_time: float, end_time: float, tokens: int) -> None:
+
+        fields = MetricSchema.model_fields
+
+        if category not in fields:
+            raise ValueError(f"Invalid metric type: {category}. Valid types are: {list(fields.keys())}")
+        
+        metric_set: MetricSet = getattr(cls._metrics, category)
+        metric_set.time_taken += end_time - start_time
+        metric_set.number_of_calls += 1
+        metric_set.total_tokens += tokens
+    
+    @classmethod
+    def finish(cls) -> None:
+        cls._has_finished = True
+
+    @classmethod
+    def display(cls) -> List[str]:
+        cls._logger.log(logging.INFO, "Orchestrator Metrics:")
+        dumped_metrics = cls._metrics.model_dump()
+        formatted_metrics = ["", ""]
+        for phase, metrics in dumped_metrics.items():
+            cls._logger.log(logging.INFO, f"  {phase.capitalize()}:")
+            for metric_name, value in metrics.items():
+                if metric_name == "time_taken":
+                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
+                else:
+                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
+            if( phase == "generation"):
+                formatted_metrics[0] += f"{metrics['time_taken']:.2f}, "
+                formatted_metrics[0] += f"{metrics['number_of_calls']}, "
+                formatted_metrics[0] += f"{metrics['total_tokens']} "
+            elif( phase == "execution"):
+                formatted_metrics[1] += f"{metrics['time_taken']:.2f}, "
+                formatted_metrics[1] += f"{metrics['number_of_calls']}, "
+                formatted_metrics[1] += f"{metrics['total_tokens']} "
+        
+        cls._logger.log(logging.INFO, f"    Execution finished: {cls._has_finished}\n")
+        return formatted_metrics
+
+    @classmethod
+    def display_formatted_metrics(cls, metrics:List[List[str]]) -> None:
+        cls._logger.log(logging.INFO, f" Formatted Generation Metrics:")
+        for line in metrics:            
+            cls._logger.log(logging.INFO, f"{(line[0])}")
+        cls._logger.log(logging.INFO, "\n")
+        cls._logger.log(logging.INFO, f" Formatted Execution Metrics:")
+        for line in metrics:            
+            cls._logger.log(logging.INFO, f"{(line[1])}")
+        cls._logger.log(logging.INFO, "\n")
+            
+    @classmethod
+    def reset(cls) -> None:
+        """Reset metrics for a new run."""
+        cls._metrics = MetricSchema()
