@@ -83,8 +83,8 @@ def main():
     # Strategy & response model
     argparser.add_argument("--strategy", type=str, choices=["monolithic", "iterative", "hierarchical"], default="monolithic",
                             help="Which orchestration strategy to use (default: monolithic)")
-    argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="linear",
-                            help="Which workflow class to use for generation / loading (default: linear)")
+    argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
+                            help="Which workflow class to use for generation / loading (default: structured)")
 
     # Features (flags)
     argparser.add_argument("--chat-clarification", action="store_true", help="Enable ChatClarificationFeature")
