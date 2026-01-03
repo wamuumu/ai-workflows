@@ -26,8 +26,8 @@ class IterativeStrategy(StrategyBase):
         generation_prompt = PromptUtils.get_system_prompt("workflow_generation")
         generation_prompt_with_tools = PromptUtils.inject(generation_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
 
-        critique_prompt = PromptUtils.get_system_prompt("workflow_critique")
-        critique_prompt_with_tools = PromptUtils.inject(critique_prompt, ToolRegistry.to_prompt_format(tools=available_tools), workflow_expected_schema=response_model.model_json_schema(), user_prompt=user_prompt)
+        review_prompt = PromptUtils.get_system_prompt("workflow_review")
+        review_prompt_with_tools = PromptUtils.inject(review_prompt, ToolRegistry.to_prompt_format(tools=available_tools), workflow_expected_schema=response_model.model_json_schema(), user_prompt=user_prompt)
         
         if not agents.generator:
             raise ValueError("Generator agent not found.")
@@ -36,7 +36,7 @@ class IterativeStrategy(StrategyBase):
             raise ValueError("Discriminator agent not found.")
         
         generator_chat = agents.generator.init_structured_chat(generation_prompt_with_tools, response_model)
-        discriminator_chat = agents.discriminator.init_chat(critique_prompt_with_tools)
+        discriminator_chat = agents.discriminator.init_chat(review_prompt_with_tools)
         
         next_message = user_prompt
         for _ in range(self.max_rounds):
@@ -48,15 +48,15 @@ class IterativeStrategy(StrategyBase):
                 print("Generated Plan:", workflow)
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            critique = discriminator_chat.send_message(workflow_json, category="generation")
+            review = discriminator_chat.send_message(workflow_json, category="generation")
             
             if debug:
-                print("Discriminator Critique:", critique)
+                print("Discriminator Review:", review)
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            if "END_CRITIQUE" in critique.upper().strip():
+            if "END_REVIEW" in review.upper().strip():
                 break
             
-            next_message = f"Please revise the workflow based on the following critique:\n{critique}\n"
+            next_message = f"Please revise the workflow based on the following review:\n{review}\n"
 
         return workflow
