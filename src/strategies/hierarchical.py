@@ -1,3 +1,5 @@
+import time
+
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
@@ -8,7 +10,7 @@ class HierarchicalStrategy(StrategyBase):
     def __init__(self):
         super().__init__()
 
-    def generate(self, context, debug):
+    def generate(self, context, max_retries, debug):
         
         agents = context.agents
         user_prompt = context.prompt
@@ -37,7 +39,19 @@ class HierarchicalStrategy(StrategyBase):
         next_message = user_prompt
 
         while True:
-            plan = planner_chat.send_message(next_message, category="generation")
+            retry = 0
+            while retry < max_retries:
+                try:
+                    plan = planner_chat.send_message(next_message, category="generation")
+                    break
+                except Exception as e:
+                    retry += 1
+                    retry_time = 2 ** retry
+                    print(f"Planning retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                    time.sleep(retry_time)
+            
+            if retry == max_retries:
+                raise RuntimeError("Max retries exceeded during task planning.")
 
             if "END_PLANNING" in plan.upper().strip():
                 break
@@ -51,8 +65,20 @@ class HierarchicalStrategy(StrategyBase):
         
         fragments = []
         for subtask in subtasks:
-            fragment = agents.generator.generate_structured_content(task_generation_prompt_with_tools, subtask, response_model)
-            fragments.append(fragment)
+            retry = 0
+            while retry < max_retries:
+                try:
+                    fragment = agents.generator.generate_structured_content(task_generation_prompt_with_tools, subtask, response_model)
+                    fragments.append(fragment)
+                    break
+                except Exception as e:
+                    retry += 1
+                    retry_time = 2 ** retry
+                    print(f"Generation retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                    time.sleep(retry_time)
+            
+            if retry == max_retries:
+                raise RuntimeError("Max retries exceeded during subtask generation.")
 
             if debug:
                 print(f"\n\nSubtask: {subtask}\n Generated Fragment: {fragment}")
@@ -60,6 +86,18 @@ class HierarchicalStrategy(StrategyBase):
 
         fragment_string = "\n\n".join([f.model_dump_json() for f in fragments])
         print("Generated Fragments JSON:", fragment_string)
-        merged = agents.planner.generate_structured_content(merge_prompt, fragment_string, response_model)
-
-        return response_model.model_validate(merged)
+        
+        retry = 0
+        while retry < max_retries:
+            try:
+                merged = agents.planner.generate_structured_content(merge_prompt, fragment_string, response_model)
+                return response_model.model_validate(merged)
+            except Exception as e:
+                retry += 1
+                retry_time = 2 ** retry
+                print(f"Merging retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                time.sleep(retry_time)
+        
+        if retry == max_retries:
+            raise RuntimeError("Max retries exceeded during task merging.")
+        

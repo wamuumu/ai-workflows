@@ -140,7 +140,7 @@ def main():
 
         # Generate or load the workflow
         if args.generate:
-            workflow = orchestrator.generate(user_prompt=user_prompt, response_model=response_model_cls)
+            workflow = orchestrator.generate(user_prompt=user_prompt, response_model=response_model_cls, debug=True)
         else:
             workflow = WorkflowUtils.load_workflow(str(workflow_path), response_model_cls)
 

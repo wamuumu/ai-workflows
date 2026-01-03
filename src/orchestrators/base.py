@@ -96,32 +96,10 @@ class ConfigurableOrchestrator:
         self.logger.log(logging.INFO, f"Initial context: {context.model_dump_json(indent=2)}")
         
         for feature in self.pre_features:
-            retry = 0
-            while retry < max_retries:
-                try:
-                    context: Context = feature.apply(context, debug)
-                    self.logger.log(logging.INFO, f"Context after pre-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
-                    break
-                except Exception as e:
-                    retry += 1
-                    retry_time = 2 ** retry
-                    self.logger.log(logging.ERROR, f"Error applying pre-feature '{feature.__class__.__name__}': {e}. Retrying {retry}/{max_retries} in {retry_time} seconds...")
-                    time.sleep(retry_time)
+            context: Context = feature.apply(context, max_retries, debug)
+            self.logger.log(logging.INFO, f"Context after pre-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
 
-            if retry == max_retries:
-                self.logger.log(logging.ERROR, f"Failed to apply pre-feature '{feature.__class__.__name__}' after {max_retries} retries.")
-                raise RuntimeError(f"Error applying pre-feature '{feature.__class__.__name__}': {e}")
-
-        retry = 0
-        while retry < max_retries:
-            try:
-                context.workflow = self.strategy.generate(context, debug)
-                break
-            except Exception as e:
-                retry += 1
-                retry_time = 2 ** retry
-                self.logger.log(logging.ERROR, f"Error during strategy generation: {e}. Retrying {retry}/{max_retries} in {retry_time} seconds...")
-                time.sleep(retry_time)
+        context.workflow = self.strategy.generate(context, max_retries, debug)
         
         if not context.workflow:
             self.logger.log(logging.ERROR, f"Failed to generate workflow after {max_retries} retries.")
@@ -130,21 +108,8 @@ class ConfigurableOrchestrator:
         self.logger.log(logging.INFO, f"Generated workflow: {context.workflow.model_dump_json(indent=2)}")
 
         for feature in self.post_features:
-            retry = 0
-            while retry < max_retries:
-                try:
-                    context: Context = feature.apply(context, debug)
-                    self.logger.log(logging.INFO, f"Context after post-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
-                    break
-                except Exception as e:
-                    retry += 1
-                    retry_time = 2 ** retry
-                    self.logger.log(logging.ERROR, f"Error applying post-feature '{feature.__class__.__name__}': {e}. Retrying {retry}/{max_retries} in {retry_time} seconds...")
-                    time.sleep(retry_time)
-            
-            if retry == max_retries:
-                self.logger.log(logging.ERROR, f"Failed to apply post-feature '{feature.__class__.__name__}' after {max_retries} retries.")
-                raise RuntimeError(f"Error applying post-feature '{feature.__class__.__name__}': {e}")
+            context: Context = feature.apply(context, max_retries, debug)
+            self.logger.log(logging.INFO, f"Context after post-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
         
         self.logger.log(logging.INFO, f"Workflow generation completed.")
 

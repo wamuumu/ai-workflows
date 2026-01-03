@@ -9,7 +9,7 @@ This fragment will later be merged with other fragments using planner-defined ar
 - Output **ONLY valid JSON** that exactly matches the provided response schema.
 - Do NOT output any extra text, explanation, comments, or metadata.
 - The workflow fragment MUST implement **ONLY the given sub-task**, not the full user request.
-- Steps MUST be sequentially named with no gaps: `"step_1"`, `"step_2"`, `"step_3"`, …
+- Step IDs MUST be sequentially named with no gaps in the format of `step_X` with no other additional characters: e.g. `"step_1"`, `"step_2"`, `"step_3"`, …
 - The fragment MUST contain exactly one `FinalStep`.
 - Each non-final step MUST explicitly define valid transitions.
 - Never mix final and non-final behavior in the same step.
@@ -33,7 +33,9 @@ This fragment will later be merged with other fragments using planner-defined ar
 ### call_llm
 - The output is **unstructured text only**.
 - Use call_llm when reasoning, interpretation, synthesis, or decision-making is required.
-- Bind the LLM output to the **single artifact produced by this sub-task**.
+
+### Branching rules
+- Branching transition conditions MUST be in a consistent format and clearly defined. Better to use binary conditions (e.g. `if yes`, `if no`, `true`, `false`, etc..) for clarity.
 
 ## Referencing rules
 - Steps may consume artifacts produced:

@@ -7,7 +7,7 @@ class FeatureBase(ABC):
     _phase: Literal["pre", "post"]
 
     @abstractmethod
-    def apply(self, context, debug: bool):
+    def apply(self, context, max_retries: int, debug: bool):
         """Apply the enhancement feature, modifying the initial prompt or the final workflow."""
         pass
 

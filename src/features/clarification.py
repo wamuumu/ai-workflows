@@ -1,3 +1,5 @@
+import time
+
 from features.base import FeatureBase
 from tools.registry import ToolRegistry 
 from utils.prompt import PromptUtils
@@ -7,7 +9,7 @@ class ChatClarificationFeature(FeatureBase):
 
     _phase = "pre"
 
-    def apply(self, context, debug):
+    def apply(self, context, max_retries, debug):
 
         agents = context.agents
         user_prompt = context.prompt
@@ -28,10 +30,19 @@ class ChatClarificationFeature(FeatureBase):
         next_message = user_prompt
 
         while True:
-            try:
-                response = chat_session.send_message(next_message)
-            except Exception as e:
-                raise RuntimeError(f"Chat message failed: {e}")
+            retry = 0
+            while retry < max_retries:
+                try:
+                    response = chat_session.send_message(next_message)
+                    break
+                except Exception as e:
+                    retry += 1
+                    retry_time = 2 ** retry
+                    print(f"Chat clarification retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                    time.sleep(retry_time)
+                
+            if retry == max_retries:
+                raise RuntimeError("Max retries exceeded during chat clarification.")
             
             print(f"\nLLM: {response}\n")
 

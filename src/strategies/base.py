@@ -8,5 +8,5 @@ class StrategyBase(ABC):
             setattr(self, key, value)
     
     @abstractmethod
-    def generate(self, context, debug: bool) -> BaseModel:
+    def generate(self, context, max_retries: int, debug: bool) -> BaseModel:
         pass

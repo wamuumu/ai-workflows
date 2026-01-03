@@ -76,6 +76,10 @@ Detect whether the workflow:
 - Contains invalid transitions.
 - Contains infinite loops or cycles unless they are **explicitly justified and safely bounded**.
 
+## Generation rules
+- Consider that multiple `FinalStep`s are allowed only if the workflow branches.
+- Consider that after branching, each branch must continue independently until its own `FinalStep`.
+
 ## Failure modes to detect and report (non-exhaustive)
 - Schema violations
 - Invalid or invented tools

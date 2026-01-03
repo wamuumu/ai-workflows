@@ -1,3 +1,5 @@
+import time
+
 from features.base import FeatureBase
 from tools.registry import ToolRegistry 
 from utils.prompt import PromptUtils
@@ -7,7 +9,7 @@ class RefinementFeature(FeatureBase):
 
     _phase = "post"
 
-    def apply(self, context, debug):
+    def apply(self, context, max_retries, debug):
 
         agents = context.agents
         user_prompt = context.prompt
@@ -31,6 +33,18 @@ class RefinementFeature(FeatureBase):
         if not agents.refiner:
             raise ValueError("Refiner agent not found.")
         
-        context.workflow = agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
-
+        retry = 0
+        while retry < max_retries:
+            try:
+                context.workflow = agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
+                break
+            except Exception as e:
+                retry += 1
+                retry_time = 2 ** retry
+                print(f"Refinement retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                time.sleep(retry_time)
+        
+        if retry == max_retries:
+            raise RuntimeError("Max retries exceeded during workflow refinement.")
+        
         return context

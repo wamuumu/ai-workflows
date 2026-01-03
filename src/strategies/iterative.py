@@ -1,3 +1,5 @@
+import time
+
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
@@ -8,7 +10,7 @@ class IterativeStrategy(StrategyBase):
     def __init__(self, max_rounds: int = 5):
         super().__init__(max_rounds=max_rounds)
 
-    def generate(self, context, debug):
+    def generate(self, context, max_retries, debug):
         
         if self.max_rounds < 1:
             raise ValueError("max_rounds must be a positive integer.")
@@ -41,14 +43,39 @@ class IterativeStrategy(StrategyBase):
         next_message = user_prompt
         for _ in range(self.max_rounds):
             
-            workflow = generator_chat.send_message(next_message, category="generation")
+            retry = 0
+            while retry < max_retries:
+                try:
+                    workflow = generator_chat.send_message(next_message, category="generation")
+                    break
+                except Exception as e:
+                    retry += 1
+                    retry_time = 2 ** retry
+                    print(f"Generation retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                    time.sleep(retry_time)
+            
+            if retry == max_retries:
+                raise RuntimeError("Max retries exceeded during workflow generation.")
+
             workflow_json = workflow.model_dump_json(indent=2)
 
             if debug:
                 print("Generated Plan:", workflow)
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            review = reviewer_chat.send_message(workflow_json, category="generation")
+            retry = 0
+            while retry < max_retries:
+                try:
+                    review = reviewer_chat.send_message(workflow_json, category="generation")
+                    break
+                except Exception as e:
+                    retry += 1
+                    retry_time = 2 ** retry
+                    print(f"Reviewer retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
+                    time.sleep(retry_time)
+            
+            if retry == max_retries:
+                raise RuntimeError("Max retries exceeded during workflow review.")
             
             if debug:
                 print("Reviewer Review:", review)
