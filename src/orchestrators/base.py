@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_serializer
 from typing import Optional, Type, List
 from contextlib import contextmanager
 from agents.base import AgentBase
-from agents.google import GeminiAgent
+from agents.google import GeminiAgent, GeminiModel
 from agents.cerebras import CerebrasAgent, CerebrasModel
 from features.base import FeatureBase
 from models.execution_response import ExecutionResponse

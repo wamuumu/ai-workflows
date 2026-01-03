@@ -23,7 +23,7 @@ class LLMStep(BaseStep):
 
 class FinalStep(BaseStep):
     """The final step in a workflow."""
-    is_final: Literal[True] = True
+    is_final: bool = True
 
 class ExecutionResponse(BaseModel):
     """An execution response representing a single step in the workflow execution."""

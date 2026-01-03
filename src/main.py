@@ -7,7 +7,7 @@ from agents.cerebras import CerebrasAgent, CerebrasModel
 from features import ChatClarificationFeature, RefinementFeature
 from models import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
-from strategies import MonolithicStrategy, IterativeStrategy, HierarchicalStrategy
+from strategies import MonolithicStrategy, IterativeStrategy, HierarchicalStrategy, IncrementalStrategy, BottomUpStrategy
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
@@ -22,6 +22,8 @@ def _strategy_factory(name: str):
         "monolithic": MonolithicStrategy,
         "iterative": IterativeStrategy,
         "hierarchical": HierarchicalStrategy,
+        "incremental": IncrementalStrategy,
+        "bottomup": BottomUpStrategy,
     }
     cls = mapping.get(name.lower())
     if cls is None:
@@ -81,7 +83,7 @@ def main():
     argparser.add_argument("--workflow-path", type=str, help="Path to a saved workflow JSON to load when not generating")
 
     # Strategy & response model
-    argparser.add_argument("--strategy", type=str, choices=["monolithic", "iterative", "hierarchical"], default="monolithic",
+    argparser.add_argument("--strategy", type=str, choices=["monolithic", "iterative", "hierarchical", "incremental", "bottomup"], default="monolithic",
                             help="Which orchestration strategy to use (default: monolithic)")
     argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
                             help="Which workflow class to use for generation / loading (default: structured)")
@@ -140,7 +142,7 @@ def main():
 
         # Generate or load the workflow
         if args.generate:
-            workflow = orchestrator.generate(user_prompt=user_prompt, response_model=response_model_cls, debug=True)
+            workflow = orchestrator.generate(user_prompt=user_prompt, response_model=response_model_cls, debug=False)
         else:
             workflow = WorkflowUtils.load_workflow(str(workflow_path), response_model_cls)
 

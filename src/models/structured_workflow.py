@@ -31,7 +31,7 @@ class LLMStep(BaseStep):
 
 class FinalStep(BaseStep):
     """The final step in a workflow."""
-    is_final: Literal[True] = True
+    is_final: bool = True
 
 class StructuredWorkflow(BaseModel):
     """A structured workflow consisting of a sequence of steps and allowing branching."""
