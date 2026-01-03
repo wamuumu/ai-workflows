@@ -21,8 +21,8 @@ def main():
     argparser = argparse.ArgumentParser(description="AI Workflow Validator")
 
     argparser.add_argument("--reference", type=str, help="Path to the reference constraints JSON file")
-    argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="linear",
-                            help="Which workflow class to use for validation (default: linear)")
+    argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
+                            help="Which workflow class to use for validation (default: structured)")
     args = argparser.parse_args()
 
     response_model_cls = _response_model_factory(args.response_model)
@@ -38,16 +38,17 @@ def main():
     workflows = []
     workflow_files = sorted(Path(WORKFLOWS).glob("workflow_*.json"))
     for i, file in enumerate(workflow_files):
-        print(f"Loading workflow {i+1} from {file}")
         workflows.append(WorkflowUtils.load_workflow(str(file), response_model_cls))
+        print(f"Loaded workflow {i+1} from {file}")
 
     # Compute similarity matrix between workflows
     MetricUtils.similarity_scores(workflows)
 
     executions = []
     execution_files = sorted(Path(EXECUTIONS).glob("execution_*.json"))
-    for file in execution_files:
+    for i, file in enumerate(execution_files):
         executions.append(WorkflowUtils.load_execution(str(file)))
+        print(f"Loaded execution {i+1} from {file}")
 
     # Compute execution similarity score
     MetricUtils.execution_similarity_scores(executions)
