@@ -3,7 +3,7 @@ from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 
 class IterativeStrategy(StrategyBase):
-    """Iterative generation strategy where generator and discriminator agents work together to build the workflow step by step."""
+    """Iterative generation strategy where generator and reviewer agents work together to build the workflow step by step."""
 
     def __init__(self, max_rounds: int = 5):
         super().__init__(max_rounds=max_rounds)
@@ -32,11 +32,11 @@ class IterativeStrategy(StrategyBase):
         if not agents.generator:
             raise ValueError("Generator agent not found.")
 
-        if not agents.discriminator:
-            raise ValueError("Discriminator agent not found.")
+        if not agents.reviewer:
+            raise ValueError("Reviewer agent not found.")
         
         generator_chat = agents.generator.init_structured_chat(generation_prompt_with_tools, response_model)
-        discriminator_chat = agents.discriminator.init_chat(review_prompt_with_tools)
+        reviewer_chat = agents.reviewer.init_chat(review_prompt_with_tools)
         
         next_message = user_prompt
         for _ in range(self.max_rounds):
@@ -48,10 +48,10 @@ class IterativeStrategy(StrategyBase):
                 print("Generated Plan:", workflow)
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            review = discriminator_chat.send_message(workflow_json, category="generation")
+            review = reviewer_chat.send_message(workflow_json, category="generation")
             
             if debug:
-                print("Discriminator Review:", review)
+                print("Reviewer Review:", review)
                 input("Press Enter to continue or Ctrl+C to exit...")
             
             if "END_REVIEW" in review.upper().strip():
