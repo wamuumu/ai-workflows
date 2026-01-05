@@ -6,6 +6,10 @@ class FeatureBase(ABC):
 
     _phase: Literal["pre", "post"]
 
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     @abstractmethod
     def apply(self, context, max_retries: int, debug: bool):
         """Apply the enhancement feature, modifying the initial prompt or the final workflow."""

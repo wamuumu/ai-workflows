@@ -75,8 +75,9 @@ class IncrementalStrategy(StrategyBase):
             
             # Prepare next message with updated state
             step_counter += 1
-            workflow_state = "\n".join([f"Step {i+1}: {step.model_dump_json()}" for i, step in enumerate(steps)])
-            next_message = f"""Current Workflow State: {workflow_state} \n\n Generate the NEXT step needed. The workflow is not yet complete."""
+            # workflow_state = "\n".join([f"Step {i+1}: {step.model_dump_json()}" for i, step in enumerate(steps)])
+            # next_message = f"""Current Workflow State: {workflow_state} \n\n Generate the NEXT step needed. The workflow is not yet complete."""
+            next_message = "Generate the NEXT step needed. The workflow is not yet complete."
 
         if debug:
             print(f"\nWorkflow generation complete with {len(steps)} steps")

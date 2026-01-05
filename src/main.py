@@ -7,7 +7,7 @@ from agents.cerebras import CerebrasAgent, CerebrasModel
 from features import ChatClarificationFeature, RefinementFeature
 from models import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
-from strategies import MonolithicStrategy, IterativeStrategy, HierarchicalStrategy, IncrementalStrategy, BottomUpStrategy
+from strategies import MonolithicStrategy, HierarchicalStrategy, IncrementalStrategy, BottomUpStrategy
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
@@ -20,7 +20,6 @@ from utils.workflow import WorkflowUtils
 def _strategy_factory(name: str):
     mapping = {
         "monolithic": MonolithicStrategy,
-        "iterative": IterativeStrategy,
         "hierarchical": HierarchicalStrategy,
         "incremental": IncrementalStrategy,
         "bottomup": BottomUpStrategy,
@@ -83,7 +82,7 @@ def main():
     argparser.add_argument("--workflow-path", type=str, help="Path to a saved workflow JSON to load when not generating")
 
     # Strategy & response model
-    argparser.add_argument("--strategy", type=str, choices=["monolithic", "iterative", "hierarchical", "incremental", "bottomup"], default="monolithic",
+    argparser.add_argument("--strategy", type=str, choices=["monolithic", "hierarchical", "incremental", "bottomup"], default="monolithic",
                             help="Which orchestration strategy to use (default: monolithic)")
     argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
                             help="Which workflow class to use for generation / loading (default: structured)")
@@ -129,7 +128,7 @@ def main():
             strategy=strategy_instance,
             available_tools=available_tools,
             features=selected_features
-        )
+        ) 
 
         # Define the user prompt to use for workflow generation
         if args.it:

@@ -83,8 +83,7 @@ class BottomUpStrategy(StrategyBase):
                     user_prompt,
                     tool_ordering,
                     control_flow,
-                    response_model,
-                    debug
+                    response_model
                 )
             except Exception as e:
                 retry += 1

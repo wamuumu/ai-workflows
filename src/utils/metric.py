@@ -21,7 +21,7 @@ class MetricSet(BaseModel):
 
 class MetricSchema(BaseModel):
     generation: MetricSet = Field(default_factory=MetricSet)
-    chat: MetricSet = Field(default_factory=MetricSet)
+    features: Dict[str, MetricSet] = Field(default_factory=dict)
     execution: MetricSet = Field(default_factory=MetricSet)
 
 class MetricUtils:
@@ -589,9 +589,13 @@ class MetricUtils:
         fields = MetricSchema.model_fields
 
         if category not in fields:
-            raise ValueError(f"Invalid metric type: {category}. Valid types are: {list(fields.keys())}")
+            metric_set: Dict[str, MetricSet] = getattr(cls._metrics, "features")
+            if category not in metric_set:
+                metric_set.__setattr__(category, MetricSet())
+                metric_set = metric_set[category]
+        else:
+            metric_set: MetricSet = getattr(cls._metrics, category)
         
-        metric_set: MetricSet = getattr(cls._metrics, category)
         metric_set.time_taken += end_time - start_time
         metric_set.number_of_calls += 1
         metric_set.total_tokens += tokens
@@ -602,38 +606,43 @@ class MetricUtils:
 
     @classmethod
     def display(cls) -> List[str]:
-        cls._logger.log(logging.INFO, "Orchestrator Metrics:")
-        dumped_metrics = cls._metrics.model_dump()
-        formatted_metrics = ["", ""]
-        for phase, metrics in dumped_metrics.items():
-            cls._logger.log(logging.INFO, f"  {phase.capitalize()}:")
-            for metric_name, value in metrics.items():
-                if metric_name == "time_taken":
-                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value:.2f} seconds")
-                else:
-                    cls._logger.log(logging.INFO, f"    {metric_name.replace('_', ' ').capitalize()}: {value}")
-            if( phase == "generation"):
-                formatted_metrics[0] += f"{metrics['time_taken']:.2f}, "
-                formatted_metrics[0] += f"{metrics['number_of_calls']}, "
-                formatted_metrics[0] += f"{metrics['total_tokens']} "
-            elif( phase == "execution"):
-                formatted_metrics[1] += f"{metrics['time_taken']:.2f}, "
-                formatted_metrics[1] += f"{metrics['number_of_calls']}, "
-                formatted_metrics[1] += f"{metrics['total_tokens']} "
+        def print_metric_set(title: str, metric_set: MetricSet, indent: int = 0):
+            prefix = " " * indent
+            cls._logger.log(logging.INFO, f"{prefix}{title}:")
+            cls._logger.log(logging.INFO, f"{prefix}  time_taken       : {metric_set.time_taken:.4f}s")
+            cls._logger.log(logging.INFO, f"{prefix}  number_of_calls  : {metric_set.number_of_calls}")
+            cls._logger.log(logging.INFO, f"{prefix}  total_tokens     : {metric_set.total_tokens}")
         
-        cls._logger.log(logging.INFO, f"    Execution finished: {cls._has_finished}\n")
-        return formatted_metrics
+        def get_formatted_metric_set(metric_set: MetricSet) -> List[str]:
+            line = f"{metric_set.time_taken:.2f}, {metric_set.number_of_calls}, {metric_set.total_tokens}"
+            return line
+
+        # Generation metrics
+        print_metric_set("Generation", cls._metrics.generation)
+
+        # Execution metrics
+        print_metric_set("Execution", cls._metrics.execution)
+
+        # Feature-level metrics
+        if cls._metrics.features:
+            cls._logger.log(logging.INFO, "Features:")
+            for feature_name, feature_metrics in cls._metrics.features.items():
+                print_metric_set(feature_name, feature_metrics, indent=2)
+        else:
+            cls._logger.log(logging.INFO, "Features: None")
+        
+        return [
+            get_formatted_metric_set(cls._metrics.generation),
+            get_formatted_metric_set(cls._metrics.execution)
+        ]
 
     @classmethod
-    def display_formatted_metrics(cls, metrics:List[List[str]]) -> None:
-        cls._logger.log(logging.INFO, f" Formatted Generation Metrics:")
-        for line in metrics:            
-            cls._logger.log(logging.INFO, f"{(line[0])}")
-        cls._logger.log(logging.INFO, "\n")
-        cls._logger.log(logging.INFO, f" Formatted Execution Metrics:")
-        for line in metrics:            
-            cls._logger.log(logging.INFO, f"{(line[1])}")
-        cls._logger.log(logging.INFO, "\n")
+    def display_formatted_metrics(cls, metrics: List[List[str]]) -> None:
+        headers = ["Generation", "Execution"]
+        for header, column in zip(headers, zip(*metrics)):
+            cls._logger.log(logging.INFO, f"Formatted {header} Metrics:")
+            for value in column:
+                cls._logger.log(logging.INFO, f"  {value}")
             
     @classmethod
     def reset(cls) -> None:

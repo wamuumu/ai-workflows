@@ -27,7 +27,7 @@ class GeminiAgent(AgentBase):
         self.client = Client()
         self.model_name = model_name
 
-    def generate_content(self, system_prompt: str, user_prompt: str) -> str:
+    def generate_content(self, system_prompt: str, user_prompt: str, category: str = "generation") -> str:
         
         start = time.time()
         response = self.client.models.generate_content(
@@ -38,12 +38,11 @@ class GeminiAgent(AgentBase):
             )
         )
         end = time.time()
-        MetricUtils.update("generation", start, end, response.usage_metadata.total_token_count)
+        MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
 
         return response.text
             
-    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
-
+    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel, category: str = "generation") -> BaseModel:
         start = time.time()
         response = self.client.models.generate_content(
             model=self.model_name,
@@ -55,7 +54,7 @@ class GeminiAgent(AgentBase):
             )
         )
         end = time.time()
-        MetricUtils.update("generation", start, end, response.usage_metadata.total_token_count)
+        MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
 
         try:
             return response_model.model_validate_json(response.text)

@@ -7,7 +7,9 @@ from utils.prompt import PromptUtils
 class ChatClarificationFeature(FeatureBase):
     """Enhancement feature for chat clarification."""
 
-    _phase = "pre"
+    def __init__(self):
+        self._phase = "pre"
+        super().__init__()
 
     def apply(self, context, max_retries, debug):
 

@@ -26,13 +26,6 @@ def main():
     args = argparser.parse_args()
 
     response_model_cls = _response_model_factory(args.response_model)
-
-    try:
-        reference_path = Path(args.reference)
-        if not reference_path.exists():
-            raise FileNotFoundError(f"Reference path '{reference_path}' does not exist.")
-    except:
-        raise ValueError("When not generating a workflow, --reference must be provided and point to a valid file.")
     
     # Retrieve workflows to compare
     workflows = []
@@ -54,10 +47,18 @@ def main():
     MetricUtils.execution_similarity_scores(executions)
 
     # Compute correctness scores against reference constraints
-    MetricUtils.correctness_scores(
-        reference=str(reference_path),
-        workflows=workflows
-    )
+    if args.reference:
+        try:
+            reference_path = Path(args.reference)
+            if not reference_path.exists():
+                raise FileNotFoundError(f"Reference path '{reference_path}' does not exist.")
+        except:
+            raise ValueError("A valid reference path must be provided for correctness scoring.")
+        
+        MetricUtils.correctness_scores(
+            reference=str(reference_path),
+            workflows=workflows
+        )
 
 if __name__ == "__main__":
     main()

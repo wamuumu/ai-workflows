@@ -28,7 +28,7 @@ class CerebrasAgent(AgentBase):
         self.client = Cerebras()
         self.model_name = model_name
 
-    def generate_content(self, system_prompt: str, user_prompt: str) -> str:
+    def generate_content(self, system_prompt: str, user_prompt: str, category: str = "generation") -> str:
         """Private method to call the LLM and get a text response."""
 
         messages = [
@@ -43,11 +43,11 @@ class CerebrasAgent(AgentBase):
             stream=False
         )
         end = time.time()
-        MetricUtils.update("generation", start, end, response.usage.total_tokens)
+        MetricUtils.update(category, start, end, response.usage.total_tokens)
 
         return response.choices[0].message.content
 
-    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel) -> BaseModel:
+    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel, category: str = "generation") -> BaseModel:
         """Private method to get the structured response from the model."""
         
         messages = [
@@ -69,7 +69,7 @@ class CerebrasAgent(AgentBase):
             }
         )
         end = time.time()
-        MetricUtils.update("generation", start, end, response.usage.total_tokens)
+        MetricUtils.update(category, start, end, response.usage.total_tokens)
 
         try:
             return response_model.model_validate_json(response.choices[0].message.content)

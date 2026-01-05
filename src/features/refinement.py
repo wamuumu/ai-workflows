@@ -7,7 +7,9 @@ from utils.prompt import PromptUtils
 class RefinementFeature(FeatureBase):
     """Enhancement feature for workflow refinement."""
 
-    _phase = "post"
+    def __init__(self):
+        self._phase = "post"
+        super().__init__()
 
     def apply(self, context, max_retries, debug):
 
@@ -36,7 +38,7 @@ class RefinementFeature(FeatureBase):
         retry = 0
         while retry < max_retries:
             try:
-                context.workflow = agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__)
+                context.workflow = agents.refiner.generate_structured_content(refine_prompt_with_tools, workflow_json, workflow.__class__, category="refinement")
                 break
             except Exception as e:
                 retry += 1
