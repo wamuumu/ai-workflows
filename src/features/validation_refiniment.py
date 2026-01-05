@@ -7,7 +7,7 @@ from utils.prompt import PromptUtils
 class ValidationRefinementFeature(FeatureBase):
     """Enhancement feature for iterative validation and refinement."""
 
-    def __init__(self, max_rounds: int = 5):
+    def __init__(self, max_rounds: int = 3):
         self._phase = "post"
         super().__init__(max_rounds=max_rounds)
 

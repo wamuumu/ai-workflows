@@ -591,8 +591,8 @@ class MetricUtils:
         if category not in fields:
             metric_set: Dict[str, MetricSet] = getattr(cls._metrics, "features")
             if category not in metric_set:
-                metric_set.__setattr__(category, MetricSet())
-                metric_set = metric_set[category]
+                metric_set[category] = MetricSet()
+            metric_set = metric_set[category]
         else:
             metric_set: MetricSet = getattr(cls._metrics, category)
         

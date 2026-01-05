@@ -4,7 +4,7 @@ from pathlib import Path
 
 from agents.google import GeminiAgent, GeminiModel
 from agents.cerebras import CerebrasAgent, CerebrasModel
-from features import ChatClarificationFeature, RefinementFeature
+from features import ChatClarificationFeature, RefinementFeature, ValidationRefinementFeature
 from models import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
 from strategies import MonolithicStrategy, HierarchicalStrategy, IncrementalStrategy, BottomUpStrategy
@@ -61,6 +61,8 @@ def _features_factory(args):
         selected_features.append(ChatClarificationFeature())
     if args.refinement:
         selected_features.append(RefinementFeature())
+    if args.validation_refinement:
+        selected_features.append(ValidationRefinementFeature())
     return selected_features
 
 # ---------------------------------------------------------------------
@@ -90,6 +92,7 @@ def main():
     # Features (flags)
     argparser.add_argument("--chat-clarification", action="store_true", help="Enable ChatClarificationFeature")
     argparser.add_argument("--refinement", action="store_true", help="Enable RefinementFeature")
+    argparser.add_argument("--validation-refinement", action="store_true", help="Enable ValidationRefinementFeature")
 
     # Tools
     argparser.add_argument("--tools", nargs="+", help="Subset of tools to enable (by name)")
