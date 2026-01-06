@@ -35,7 +35,8 @@ def main():
         print(f"Loaded workflow {i+1} from {file}")
 
     # Compute similarity matrix between workflows
-    MetricUtils.similarity_scores(workflows)
+    if workflows:
+        MetricUtils.similarity_scores(workflows)
 
     executions = []
     execution_files = sorted(Path(EXECUTIONS).glob("execution_*.json"))
@@ -44,7 +45,8 @@ def main():
         print(f"Loaded execution {i+1} from {file}")
 
     # Compute execution similarity score
-    MetricUtils.execution_similarity_scores(executions)
+    if executions:
+        MetricUtils.execution_similarity_scores(executions)
 
     # Compute correctness scores against reference constraints
     if args.reference:
@@ -55,10 +57,11 @@ def main():
         except:
             raise ValueError("A valid reference path must be provided for correctness scoring.")
         
-        MetricUtils.correctness_scores(
-            reference=str(reference_path),
-            workflows=workflows
-        )
+        if workflows:
+            MetricUtils.correctness_scores(
+                reference=str(reference_path),
+                workflows=workflows
+            )
 
 if __name__ == "__main__":
     main()

@@ -36,7 +36,7 @@ class BottomUpStrategy(StrategyBase):
                 tool_analysis = self._identify_tools(agents.planner, user_prompt, available_tools, debug)
                 break
             except Exception as e:
-                rety += 1
+                retry += 1
                 retry_time = 2 ** retry
                 print(f"Identification retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
                 time.sleep(retry_time)

@@ -492,9 +492,10 @@ class MetricUtils:
             avg_sim = float(np.mean(sims))
             key_coverage = len(common) / len(all_keys)
             return 0.7 * avg_sim + 0.3 * key_coverage
-        # Fallback to lists comparison
-        return cls._compare_lists(list_a, list_b)
-
+        
+        # Different keys or no 'key' field -> fallback to positional
+        return 0.0
+    
     @classmethod
     def _compare_lists(cls, list_a: List, list_b: List) -> float:
         if not list_a and not list_b:
