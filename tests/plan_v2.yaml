@@ -1,0 +1,87 @@
+tests:
+  # ---------------------------------------------------------
+  # GROUP 1: BASELINE
+  # Goal: Establish baseline performances 
+  # ---------------------------------------------------------
+  - id: "T1_BASE_MONO"
+    architecture: "monolithic"
+    features: []
+    toolset: "standard"
+    workflow: "linear"
+    hypothesis: "Monolithic linear approach should be enough to handle basic workflow generation"
+
+  - id: "T2_BASE_MONO"
+    architecture: "monolithic"
+    features: []
+    toolset: "standard"
+    workflow: "structured"
+    hypothesis: "Monolithic structured approach should outperform linear in handling branching logic"
+
+  # ---------------------------------------------------------
+  # GROUP 2: ARCHITECTURE COMPARISON
+  # Goal: Prove that advanced architectures outperform baseline Monolithic.
+  # ---------------------------------------------------------
+
+  - id: "T3_ARCH_INCREMENTAL"
+    architecture: "incremental"
+    features: []
+    toolset: "standard"
+    workflow: "structured"
+    hypothesis: "Incremental architecture should outperform monolithic due to its stepwise generation, reducing error propagation and improving handling of complex tasks."
+  
+  - id: "T4_ARCH_BOTTOM_UP"
+    architecture: "bottom-up"
+    features: []
+    toolset: "standard"
+    workflow: "structured"
+    hypothesis: "Bottom-up architecture should outperform incremental due to its reduced error propagation, hallucination containment, and better handling of complex branching logic."
+
+  # ---------------------------------------------------------
+  # GROUP 3: TESTING ORTHOGONALITY
+  # Goal: Prove that features improve any architecture.
+  # ---------------------------------------------------------
+  - id: "T5_FEAT_REFINEMENT"
+    architecture: "monolithic"
+    features: ["validation_refinement"]
+    toolset: "standard"
+    workflow: "structured"
+    hypothesis: "Iterative refinement will improve 'Executability' and 'Connection Logic' metrics across architectures by catching and correcting errors."
+
+  - id: "T6_FEAT_CHAT"
+    architecture: "monolithic"
+    features: ["chat_clarification"]
+    toolset: "standard"
+    workflow: "structured"
+    hypothesis: "Chat-based user clarification will improve 'User Intent' satisfaction by ensuring the generated workflow aligns better with user needs."
+
+  # ---------------------------------------------------------
+  # GROUP 4: ENVIRONMENTAL VARIABLES
+  # Goal: Test impact of toolset size and granularity (atomic vs standard).
+  # ---------------------------------------------------------
+  - id: "T7_ENV_ATOMIC"
+    architecture: "bottom-up"
+    features: []
+    toolset: "atomic"
+    workflow: "structured"
+    hypothesis: "Using atomic tools should make workflows easier to validate and to understand, even if planning becomes more complex and more prone to errors."
+
+  - id: "T8_ENV_MACRO"
+    architecture: "bottom-up"
+    features: []
+    toolset: "macro"
+    workflow: "structured"
+    hypothesis: "Using macro tools should simplify planning and improve 'Connection Logic', but may reduce 'Executability' due to less granular control."
+
+  - id: "T9_ENV_LIMITED"
+    architecture: "bottom-up"
+    features: []
+    toolset: "limited (missing core tools)"
+    workflow: "structured"
+    hypothesis: "Using a limited toolset should challenge the model's ability to creatively combine tools, potentially reducing 'Executability' but testing adaptability."
+
+  - id: "T10_ENV_OVERLAPPING"
+    architecture: "bottom-up"
+    features: []
+    toolset: "overlapping (redundant tools)"
+    workflow: "structured"
+    hypothesis: "Using overlapping tools should test the model's ability to choose the most appropriate tool, potentially improving 'Connection Logic' but risking confusion and errors."
