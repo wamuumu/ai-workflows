@@ -1,3 +1,12 @@
 {
-    "1": "I'm traveling to Paris next Monday for 3 days. Check the weather forecast, find the currency exchange rate from USD to EUR for $500, search for popular tourist attractions, translate them in Italian and create a summary document called paris_trip.txt with all this information"
+    "1": "I'm traveling to Paris next Monday for 3 days. Check the weather forecast, find the currency exchange rate from USD to EUR for $500, search for popular tourist attractions, translate them in Italian and create a summary document called paris_trip.txt with all this information",
+    "2": "Planning a 3-day Paris trip starting next Monday: get the weather outlook, convert $500 USD to EUR, find top attractions, translate them to Italian, and write everything into paris_trip.txt",
+    "3": "Trip to Paris begins next Monday for three days. Pull the forecast, compute USD→EUR for $500, list popular sights, translate those names into Italian, and summarize in paris_trip.txt",
+    "4": "For a 3-day stay in Paris starting next Monday, fetch the weather, calculate how much 500 USD is in EUR, gather must-see attractions, translate them to Italian, and save all details in paris_trip.txt",
+    "5": "I need a Paris plan for next Monday’s 3-day visit: weather check, exchange $500 to euros, collect top attractions, translate them into Italian, and record everything in paris_trip.txt",
+    "6": "Prepare for a three-day Paris trip starting Monday: get the forecast, convert $500 from USD to EUR, search popular attractions, translate them to Italian, and produce paris_trip.txt",
+    "7": "Next Monday I’m in Paris for 3 days. Fetch the weather, compute the EUR value of $500, find key tourist spots, translate those to Italian, and compile it all into paris_trip.txt",
+    "8": "Create a 3-day Paris itinerary starting Monday: weather forecast, USD to EUR conversion for $500, list major attractions, translate them in Italian, and store in paris_trip.txt",
+    "9": "Check Paris weather for a three-day trip starting next Monday, convert $500 USD to euros, gather famous attractions, translate to Italian, and summarize the info in paris_trip.txt",
+    "10": "Build a summary for my 3-day Paris visit beginning Monday: forecast the weather, convert 500 USD to EUR, research top tourist sites, translate them to Italian, and save everything into paris_trip.txt"
 }

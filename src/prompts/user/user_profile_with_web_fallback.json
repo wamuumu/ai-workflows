@@ -1,3 +1,12 @@
 {
-    "1": "Generate a user profile from a long biography text. If the profile extraction fails or the text is too short, ask for web search results about that person and retry."
+    "1": "Generate a user profile from a long biography text. If the profile extraction fails or the text is too short, ask for web search results about that person and retry.",
+    "2": "Build a user profile from the provided long bio; if extraction doesn’t work or the bio is too brief, request web search results on the person and try again",
+    "3": "Create a profile using the biography text. When the profile can’t be produced or the bio lacks length, ask for web search info about the individual and retry",
+    "4": "From the given biography, derive a user profile. If that fails or the text is insufficient, obtain web search results for the person and rerun the profile",
+    "5": "Generate a profile based on the long bio text; if extraction is unsuccessful or the bio is too short, request web search details about the person and attempt again",
+    "6": "Using the biography provided, craft a user profile. If profiling fails or there isn’t enough text, prompt for web search results about the person and redo the profile",
+    "7": "Produce a user profile from the biography. Should extraction fail or content be too brief, gather web search findings about the person and retry",
+    "8": "Turn the supplied biography into a profile. If unsuccessful or the text is minimal, ask for web search results on that person and regenerate the profile",
+    "9": "Profile the user from their biography text. If you can’t or the bio is too short, request web search output about them and try again",
+    "10": "Derive a user profile from the long bio; if that fails or there’s not enough text, pull in web search results for the person and rerun the profile"
 }

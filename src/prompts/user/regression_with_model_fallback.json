@@ -1,3 +1,12 @@
 {
-    "1": "You're given numerical training data. Compute descriptive statistics, train a regression model, and generate predictions. If the variance of the output variable is under a threshold, switch to a simpler model."
+    "1": "You're given numerical training data. Compute descriptive statistics, train a regression model, and generate predictions. If the variance of the output variable is under a threshold, switch to a simpler model.",
+    "2": "With the provided numeric dataset, calculate descriptive stats, fit a regression, and produce predictions; if the target variance is low, fall back to a simpler model",
+    "3": "Given numerical training data, summarize with descriptive statistics, train a regression model, output predictions, and if output variance is below a threshold, use a simpler model instead",
+    "4": "Compute descriptive statistics on the numeric data, build a regression model for predictions, and when the target variance is small, choose a simpler alternative model",
+    "5": "For this numeric dataset, run descriptive stats, train regression, generate predictions, and if the target variance falls under a set limit, revert to a simpler model",
+    "6": "Analyze numerical data with descriptive measures, train a regression for forecasting, and swap to a simpler model when output variance is beneath the threshold",
+    "7": "Perform descriptive analysis on the numeric training set, fit a regression, produce predictions, and downgrade to a simpler model if the target variance is low",
+    "8": "Use the numerical dataset to compute descriptive statistics, then train a regression; if the dependent variable variance is under the cutoff, switch to a simpler model for predictions",
+    "9": "Run descriptive stats on numeric data, build a regression model, output predictions, and in cases of low target variance, choose a simpler regression alternative",
+    "10": "Summarize the numeric training data, train a regression model, generate predictions, and when target variance is minimal, replace the model with a simpler option"
 }

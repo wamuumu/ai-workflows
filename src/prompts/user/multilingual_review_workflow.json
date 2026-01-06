@@ -1,3 +1,12 @@
 {
-    "1": "You're given multilingual customer reviews. Build a workflow to clean, translate, embed each review, and cluster them conceptually using only the tools available."
+    "1": "You're given multilingual customer reviews. Build a workflow to clean, translate, embed each review, and cluster them conceptually using only the tools available.",
+    "2": "Take the multilingual customer reviews, run cleaning, translate them to a common language, generate embeddings, and cluster them conceptually with only the provided tools",
+    "3": "Design a workflow for multilingual reviews: clean the text, translate to one language, create embeddings, and perform conceptual clustering using the allowed toolset",
+    "4": "Given customer reviews in multiple languages, preprocess/clean, translate into a shared language, embed each, then cluster semantically using only available tools",
+    "5": "Clean multilingual reviews, translate to a single target language, build embeddings, and cluster the reviews by concept using the provided tools",
+    "6": "For the multilingual review set, strip noise, translate consistently, embed the texts, and run conceptual clustering with only the built-in tools",
+    "7": "Create a pipeline for multilingual customer reviews: cleaning → translation → embedding → conceptual clustering, restricted to the available tools",
+    "8": "Process the multilingual reviews by cleaning them, translating to one language, computing embeddings, and clustering conceptually using only the given tools",
+    "9": "Build a review pipeline: clean and normalize multilingual input, translate to a common language, embed each review, and cluster by meaning with the provided tools",
+    "10": "Handle multilingual customer reviews by cleaning, translating to a shared language, embedding, and clustering conceptually, using only the tools on hand"
 }

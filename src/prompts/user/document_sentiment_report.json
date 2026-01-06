@@ -1,3 +1,12 @@
 {
-    "1": "Read all .txt files in the documents folder, analyze the sentiment of each, create a comparison report showing which documents are most positive vs negative, and email the report to manager@company.com"
+    "1": "Read all .txt files in the documents folder, analyze the sentiment of each, create a comparison report showing which documents are most positive vs negative, and email the report to manager@company.com",
+    "2": "Scan every .txt in the documents directory, run sentiment analysis, rank them from most positive to most negative, and email the comparison report to manager@company.com",
+    "3": "Go through all .txt files under documents, score their sentiment, compile a summary that contrasts the happiest vs most critical files, and send it by email to manager@company.com",
+    "4": "Analyze sentiment for each .txt file in the documents folder, highlight the top positive and top negative entries, and email the findings report to manager@company.com",
+    "5": "Perform sentiment scoring on all documents/*.txt files, build a side-by-side report of the most upbeat versus most negative documents, and email that report to manager@company.com",
+    "6": "Read every text file in documents, compute sentiment, produce a comparative chart of positive versus negative documents, and email it to manager@company.com",
+    "7": "Collect all .txt files from the documents folder, evaluate their sentiment, list which are most positive and most negative, and email the comparison to manager@company.com",
+    "8": "Process documents/*.txt for sentiment, summarize which files are strongly positive or negative, and email the report to manager@company.com",
+    "9": "Run sentiment analysis across all .txt files in documents, rank them from positive to negative, and email the ranking report to manager@company.com",
+    "10": "Inspect each .txt in the documents folder, score sentiment, create a brief report contrasting the most positive vs most negative documents, and email it to manager@company.com"
 }

@@ -27,7 +27,7 @@ tests:
     features: []
     toolset: "standard"
     workflow: "structured"
-    hypothesis: "Incremental architecture should outperform monolithic due to its stepwise generation, reducing error propagation and improving handling of complex tasks."
+    hypothesis: "Incremental architecture should outperform monolithic due to its stepwise validation and error correction, at the cost of worse efficiency."
   
   - id: "T4_ARCH_BOTTOM_UP"
     architecture: "bottom-up"

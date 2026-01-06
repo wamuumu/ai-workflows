@@ -1,3 +1,12 @@
 {
-    "1": "Given a text input, classify it using predefined labels. But if classification confidence is low, apply additional preprocessing (cleaning → translation → re-classification)."
+    "1": "Given a text input, classify it using predefined labels. But if classification confidence is low, apply additional preprocessing (cleaning → translation → re-classification).",
+    "2": "Classify the text against predefined labels; when confidence is low, perform cleaning, translate if needed, then classify again",
+    "3": "Take an input text and assign a label. If the confidence drops below a threshold, clean it, translate to a standard language, and retry classification",
+    "4": "Label the provided text using the existing label set. If the model is uncertain, run cleaning and translation before reclassifying",
+    "5": "Do a standard classification on the text. When confidence is weak, preprocess by cleaning, translate to a common language, then re-run classification",
+    "6": "Apply predefined label classification to the text; on low confidence, normalize/clean, translate, and classify again",
+    "7": "Classify the input text with the known labels. If the score is low, clean it up, translate it, and perform another classification pass",
+    "8": "Assign a label to the text. Should confidence be insufficient, execute cleaning, translate to a single language, and reclassify",
+    "9": "Perform label classification. If uncertainty remains high, preprocess via cleaning, translate, then attempt reclassification",
+    "10": "Run classification against the predefined labels; if confidence is under the threshold, clean and translate the text before retrying the classification"
 }
