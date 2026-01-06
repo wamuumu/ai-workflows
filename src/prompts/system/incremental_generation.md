@@ -6,6 +6,30 @@ This is a **constrained incremental construction task**, not free-form generatio
 
 ---
 
+---
+
+## Workflow Mode (CRITICAL)
+
+You will be instructed to generate steps for **ONE** of the following workflow types:
+
+### 1. LinearWorkflow
+- Steps execute in a **single, fixed sequence**
+- **NO branching is allowed**
+- Steps **DO NOT define transitions**
+- Execution always proceeds to the next sequential step
+- There MUST be **exactly one FinalStep**
+
+### 2. StructuredWorkflow
+- Steps may include **explicit branching**
+- Steps **MUST define transitions**
+- Multiple execution paths are allowed
+- Each branch MUST terminate in its own FinalStep
+- **Branches MUST NEVER merge**
+
+You MUST strictly follow the rules of the active workflow type.
+
+---
+
 ## Task
 At each turn, generate the **next logical step** required to satisfy the user’s request, based on:
 
@@ -75,7 +99,7 @@ Rules:
 
 ---
 
-## Transitions and control flow (CRITICAL)
+## Transitions and control flow (if structured workflow)
 
 ### General rules
 - Every NON-final step MUST define transitions
@@ -89,7 +113,7 @@ Rules:
 
 ---
 
-### Branching rules (STRICT)
+### Branching rules (if structured workflow)
 - Branching MUST be explicit and condition-based
 - Branching conditions MUST be:
   - simple
@@ -145,7 +169,7 @@ Set:
 - Emitting more than one step
 - Skipping or reusing step IDs
 - Missing transitions on non-final steps
-- FinalSteps without branching
+- Multiple FinalSteps without branching
 - Branching without complete coverage
 - Merging branches
 - Referencing future or non-existent steps

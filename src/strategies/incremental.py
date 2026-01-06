@@ -1,6 +1,6 @@
 import time
 
-from models.next_step_response import NextStepResponse
+from models.next_step_response import NextLinearStep, NextStructuredStep
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
@@ -35,8 +35,15 @@ class IncrementalStrategy(StrategyBase):
         system_prompt = PromptUtils.get_system_prompt("incremental_generation")
         system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
         
+        if response_model.__class__.__name__ == "LinearWorkflow":
+            type = "linear"
+            next_step_response_model = NextLinearStep
+        else:
+            type = "structured"
+            next_step_response_model = NextStructuredStep
+
         # Create chat session for stateful generation
-        chat_session = agents.generator.init_structured_chat(system_prompt_with_tools, NextStepResponse)
+        chat_session = agents.generator.init_structured_chat(system_prompt_with_tools, next_step_response_model)
         
         # Initial message
         next_message = f"""User Request: {user_prompt} \n\n Current Workflow State: Empty (no steps yet)"""
@@ -67,7 +74,7 @@ class IncrementalStrategy(StrategyBase):
                 input("Press Enter to continue or Ctrl+C to exit...")
             
             # Add step to workflow
-            steps.append(NextStepResponse.model_validate(response).step)
+            steps.append(next_step_response_model.model_validate(response).step)
             
             # Check if workflow is complete
             if response.is_complete:
@@ -88,7 +95,7 @@ class IncrementalStrategy(StrategyBase):
             title=f"Incrementally Generated Workflow",
             description=f"Workflow built step-by-step for: {user_prompt[:100]}",
             target_objective=user_prompt,
-            type="structured",
+            type=type,
             steps=steps
         )
         
