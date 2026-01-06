@@ -45,7 +45,7 @@ If a review is also provided, ensure the workflow addresses all issues raised.
 ## Referencing rules
 - Each step `parameter` or `prompt` MAY reference step outputs as needed.
 - Steps can ONLY reference prior steps outputs.
-- Each reference MUST be in the format of `{{step_ID.output_field}}`, where:
+- Each reference MUST be in the format of `{step_ID.output_field}`, where:
   - `step_ID` is the ID of a prior step
   - `output_field` is a valid output field of that step (e.g. `response` for *call_llm* steps, or a tool-specific output field for *call_tool* steps according to the tool output schema)
 

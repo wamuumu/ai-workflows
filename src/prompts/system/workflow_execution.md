@@ -33,7 +33,7 @@ Execute the workflow **exactly as defined**, step by step, strictly following th
 - The executor MUST NOT attempt to reconcile or unify branch outputs.
 
 ## Placeholder resolution
-- Before executing a step, resolve all placeholders of the form `{{step_X.some_key}}` using values from the current `state`.
+- Before executing a step, resolve all placeholders of the form `{step_X.some_key}` using values from the current `state`.
 - Placeholders may ONLY reference outputs from **previously completed steps** in the same execution path.
 
 ## Step execution rules

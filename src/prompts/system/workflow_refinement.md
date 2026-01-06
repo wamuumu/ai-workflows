@@ -92,7 +92,7 @@ You MUST identify and fix:
 ---
 
 ## Reference and placeholder correctness
-- All references MUST use the format: `{{step_ID.output_field}}`
+- All references MUST use the format: `{step_ID.output_field}`
 - Ensure:
   - `step_ID` exists
   - It occurs earlier in the execution path
