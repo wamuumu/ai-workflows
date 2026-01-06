@@ -17,12 +17,16 @@
   "expected_goal": "Plan activities based on weather and send a summary email",
   "expected_thoughts": [
     "Get the current weather for London for the next 3 days",
-    "Analyze the weather forecast to check for rain",
-    "Find indoor activities in London if it will rain",
-    "Save indoor activities to a file if it will rain",
-    "Find outdoor activities in London if it will not rain",
-    "Save outdoor activities to a file if it will not rain",
-    "Summarize the plan based on the weather and activities",
-    "Send an email summarizing the plan"
+    "Determine whether any of the forecasted days include rain.",
+    "Rain is expected, so fetch indoor activity ideas for London.",
+    "Save indoor activities to a file.",
+    "Compose an email summarizing the forecast and indoor activities.",
+    "Send the email with indoor activity information.",
+    "All tasks for the rain scenario are complete.",
+    "No rain expected, so fetch outdoor activity ideas for London.",
+    "Save outdoor activities to a file.",
+    "Compose an email summarizing the forecast and outdoor activities.",
+    "Send the email with outdoor activity information.",
+    "All tasks for the no-rain scenario are complete."
   ]
 }

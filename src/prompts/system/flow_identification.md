@@ -25,6 +25,8 @@ Identify where LLM reasoning is needed for:
 - Explain WHY control flow is needed
 - Identify ALL decision points, don't miss any
 - For branching, list all possible outcomes
+- Assume that distinct execution paths originated from branching never reconverge
+- Clearly state what tools depend on each decision point
 
 ## Goal
 Return complete control flow analysis.

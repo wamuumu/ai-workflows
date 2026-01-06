@@ -12,17 +12,6 @@ class ToolAnalysisResponse(BaseModel):
     required_tools: List[ToolRequirement] = Field(..., description="All tools needed to accomplish the task")
     reasoning: str = Field(..., description="Overall reasoning for tool selection")
 
-# Phase 2: Tool Ordering
-class ToolCall(BaseModel):
-    step_id: str = Field(..., description="Sequential step ID (step_1, step_2, etc.)")
-    tool_name: str = Field(..., description="Name of the tool to call")
-    depends_on: List[str] = Field(default_factory=list, description="Step IDs this depends on")
-    purpose: str = Field(..., description="What this tool call accomplishes")
-
-class ToolOrderingResponse(BaseModel):
-    ordered_calls: List[ToolCall] = Field(..., description="Tools in execution order")
-    reasoning: str = Field(..., description="Reasoning for the ordering")
-
 # Phase 3: Control Flow
 class ControlFlowDecision(BaseModel):
     decision_point: str = Field(..., description="Where decision/branching is needed (step_id or 'none')")

@@ -45,10 +45,20 @@ class WorkflowUtils:
     def load_workflow(cls, filepath: str, model: BaseModel) -> BaseModel:
         """Load a workflow from a JSON file into the specified model format."""
         
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Workflow file not found: {filepath}")
+
         with open(filepath, "r", encoding="utf-8") as f:
             workflow_data = f.read()
 
         return model.model_validate_json(workflow_data)
+
+    @classmethod
+    def list_workflows(cls) -> list[str]:
+        """List all saved workflows."""
+        
+        cls._check_folder(WORKFLOWS)
+        return [os.path.join(WORKFLOWS, f) for f in os.listdir(WORKFLOWS) if f.endswith(".json")]
 
     @classmethod
     def save_visualization(cls, workflow: BaseModel) -> str:

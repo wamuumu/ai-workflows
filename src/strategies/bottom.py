@@ -1,6 +1,6 @@
 import time
 
-from models.bottom_up import ToolAnalysisResponse, ToolOrderingResponse, ControlFlowResponse
+from models.bottom_up import ToolAnalysisResponse, ControlFlowResponse
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
@@ -44,26 +44,11 @@ class BottomUpStrategy(StrategyBase):
         if retry == max_retries:
             raise RuntimeError("Max retries exceeded during tool identification.")
         
-        # Phase 2: Order tool calls
+        # Phase 2: Identify control flow needs
         retry = 0
         while retry < max_retries:
             try:
-                tool_ordering = self._order_tools(agents.planner, user_prompt, tool_analysis, debug)
-                break
-            except Exception as e:
-                retry += 1
-                retry_time = 2 ** retry
-                print(f"Ordering retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                time.sleep(retry_time)
-        
-        if retry == max_retries:
-            raise RuntimeError("Max retries exceeded during tool ordering.")
-        
-        # Phase 3: Identify control flow needs
-        retry = 0
-        while retry < max_retries:
-            try:
-                control_flow = self._identify_control_flow(agents.planner, user_prompt, tool_ordering, debug)
+                control_flow = self._identify_control_flow(agents.planner, user_prompt, tool_analysis, debug)
                 break
             except Exception as e:
                 retry += 1
@@ -74,14 +59,14 @@ class BottomUpStrategy(StrategyBase):
         if retry == max_retries:
             raise RuntimeError("Max retries exceeded during flow control identification.")
         
-        # Phase 4: Assemble complete workflow
+        # Phase 3: Assemble complete workflow
         retry = 0
         while retry < max_retries:
             try:
                 return self._assemble_workflow(
                     agents.generator,
                     user_prompt,
-                    tool_ordering,
+                    tool_analysis,
                     control_flow,
                     response_model
                 )
@@ -115,48 +100,21 @@ class BottomUpStrategy(StrategyBase):
             print(f"Required tools ({len(response.required_tools)}):")
             for tool in response.required_tools:
                 print(f"  - {tool.tool_name}: {tool.purpose}")
+                print(f"    Inputs: {', '.join(tool.inputs_needed)}")
+                print(f"    Outputs: {', '.join(tool.outputs_produced)}")
             input("Press Enter to continue...")
         
         return response
 
-    def _order_tools(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, debug: bool) -> ToolOrderingResponse:
-        """Phase 2: Determine execution order of tool calls."""
-        
-        tool_list = "\n".join([
-            f"- {t.tool_name}: {t.purpose}\n  Inputs: {', '.join(t.inputs_needed)}\n  Outputs: {', '.join(t.outputs_produced)}"
-            for t in tool_analysis.required_tools
-        ])
-        
-        system_prompt = PromptUtils.get_system_prompt("tool_ordering")
-        context = PromptUtils.inject(user_prompt, required_tools=tool_list)
+    def _identify_control_flow(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, debug: bool) -> ControlFlowResponse:
+        """Phase 2: Identify where control flow (branching, conditionals) is needed."""
 
-        response = agent.generate_structured_content(
-            system_prompt,
-            context,
-            ToolOrderingResponse
-        )
-        
-        if debug:
-            print("\n=== PHASE 2: Tool Ordering ===")
-            print(f"Reasoning: {response.reasoning}")
-            print(f"Ordered calls ({len(response.ordered_calls)}):")
-            for call in response.ordered_calls:
-                deps = f"depends on {', '.join(call.depends_on)}" if call.depends_on else "no dependencies"
-                print(f"  {call.step_id}: {call.tool_name} ({deps})")
-            input("Press Enter to continue...")
-        
-        return response
-
-    def _identify_control_flow(self, agent, user_prompt: str, tool_ordering: ToolOrderingResponse, debug: bool) -> ControlFlowResponse:
-        """Phase 3: Identify where control flow (branching, conditionals) is needed."""
-        
-        ordered_tools = "\n".join([
-            f"{call.step_id}: {call.tool_name} - {call.purpose}"
-            for call in tool_ordering.ordered_calls
-        ])
+        tools = ""
+        for tool in tool_analysis.required_tools:
+            tools += ToolRegistry.get(tool.tool_name).to_prompt_format() + "\n"
         
         system_prompt = PromptUtils.get_system_prompt("flow_identification")
-        context = PromptUtils.inject(user_prompt, ordered_tools=ordered_tools)
+        context = PromptUtils.inject(user_prompt, ordered_tools=tools)
 
         response = agent.generate_structured_content(
             system_prompt,
@@ -165,18 +123,19 @@ class BottomUpStrategy(StrategyBase):
         )
         
         if debug:
-            print("\n=== PHASE 3: Control Flow Identification ===")
+            print("\n=== PHASE 2: Control Flow Identification ===")
             print(f"Reasoning: {response.reasoning}")
             print(f"Control decisions ({len(response.control_decisions)}):")
             for decision in response.control_decisions:
                 print(f"  At {decision.decision_point}: {decision.decision_type} - {decision.reason}")
+                print(f"    Branches: {', '.join(decision.branches) if decision.branches else 'none'}")
             print(f"LLM calls needed: {', '.join(response.llm_calls_needed) if response.llm_calls_needed else 'none'}")
             input("Press Enter to continue...")
         
         return response
 
-    def _assemble_workflow(self, agent, user_prompt: str, tool_ordering: ToolOrderingResponse, control_flow: ControlFlowResponse, response_model):
-        """Phase 4: Assemble complete workflow from analysis."""
+    def _assemble_workflow(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, control_flow: ControlFlowResponse, response_model):
+        """Phase 3: Assemble complete workflow from analysis."""
         
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
         
@@ -186,11 +145,10 @@ class BottomUpStrategy(StrategyBase):
         ## Original User Request
         {user_prompt}
 
-        ## Tool Sequence (Pre-Analyzed)
+        ## Tools to use (Pre-Analyzed)
         """
-        for call in tool_ordering.ordered_calls:
-            deps = f" (depends on: {', '.join(call.depends_on)})" if call.depends_on else ""
-            assembly_context += f"- {call.step_id}: {call.tool_name}{deps} - {call.purpose}\n"
+        for tool in tool_analysis.required_tools:
+            assembly_context += ToolRegistry.get(tool.tool_name).to_prompt_format() + "\n"
 
         assembly_context += "\n## Control Flow Requirements (Pre-Analyzed)\n"
         for decision in control_flow.control_decisions:
@@ -203,7 +161,7 @@ class BottomUpStrategy(StrategyBase):
 
         assembly_context += """
         ## Assembly Instructions
-        1. Use the exact tool sequence provided above
+        1. Use all identified tools
         2. Implement control flow decisions at specified points
         3. Add LLM steps where indicated for reasoning/decisions
         4. Create proper transitions for StructuredWorkflow
