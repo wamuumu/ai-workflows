@@ -260,17 +260,29 @@ class MetricUtils:
             # Expected tool calls
             tool_count = Counter(step.tool_name for step in workflow.steps if not hasattr(step, "is_final") and step.action == "call_tool")
             expected_tool_calls = reference_data.get("expected_tool_calls", {})
+
+            mode = cls._detect_mode(tool_count, expected_tool_calls)
+
+            if mode == "invalid":
+                cls._logger.log(logging.ERROR, f"Workflow W{idx + 1} has unknown or invalid mode based on tool usage. Skipping correctness evaluation.\n")
+                continue
         
+            # Score mode-specific tool usage
             tool_scores = []
-            for tool, limits in expected_tool_calls.items(): 
-                count = tool_count.get(tool, 0)
-                min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
-                tool_scores.append(cls._get_score(count, min_calls, max_calls))
+            expected_tools_calls = {
+                **expected_tool_calls.get(mode, {}),
+                **expected_tool_calls.get("common", {})
+            }
+            if expected_tools_calls:
+                for tool, limits in expected_tools_calls.items():
+                    count = tool_count.get(tool, 0)
+                    min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
+                    tool_scores.append(cls._get_score(count, min_calls, max_calls))
 
             # Expected LLM calls
             llm_count = sum(1 for step in workflow.steps if not hasattr(step, "is_final") and step.action == "call_llm")
-            expected_llm_calls = reference_data.get("expected_llm_calls", {})
-            if expected_llm_calls and len(expected_llm_calls) == 2:
+            expected_llm_calls = reference_data.get("expected_llm_calls", {}).get(mode, {})
+            if expected_llm_calls:
                 min_calls, max_calls = expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf'))
                 llm_score = cls._get_score(llm_count, min_calls, max_calls)
             else:
@@ -278,32 +290,29 @@ class MetricUtils:
 
             # Expected total steps
             total_steps = sum(1 for step in workflow.steps if not hasattr(step, "is_final"))
-            expected_total_steps = reference_data.get("expected_step_count_range", [])
-            if expected_total_steps and len(expected_total_steps) == 2:
+            expected_total_steps = reference_data.get("expected_step_count_range", {}).get(mode, {})
+            if expected_total_steps:
                 min_steps, max_steps = expected_total_steps.get("min", 0), expected_total_steps.get("max", float('inf'))
                 step_score = cls._get_score(total_steps, min_steps, max_steps)
             else:
                 step_score = 0.0
 
             # Expected branch transitions
-            transition_score = 0
-            branching_nodes = [step for step in workflow.steps if hasattr(step, "transitions") and step.action == "call_llm" and len(step.transitions) > 1]
-            if branching_nodes:
-                expected_branching = reference_data.get("expected_branch_transitions", {})
-                for _, constraints in expected_branching.items():
-                    keywords = constraints.get("keywords", [])
-                    for step in branching_nodes:
-                        if any(kw in step.prompt for kw in keywords):
-                            branch_count = len(step.transitions)
-                            if constraints.get("transitions", 0) == branch_count:
-                                transition_score += 1
-            
-                transition_score = transition_score / max(len(branching_nodes), 1)
+            expected_branching = reference_data.get("expected_branch_transitions", {}).get(mode, {})
+            branching_steps = cls._get_branching_steps(workflow)
+            if expected_branching:
+                matched = 0
+                for _, constraint in expected_branching.items():
+                    if any(cls._matches_branch_constraint(step, constraint) for step in branching_steps):
+                        matched += 1
+                transition_score = matched / max(len(expected_branching), 1)
+            else:
+                transition_score = 0.0
             
             reference_goal = reference_data.get("expected_goal", "")
             goal_score = cls._string_embedding_score(workflow.target_objective, reference_goal)
             
-            reference_thoughts = "\n".join(reference_data.get("expected_thoughts", []))
+            reference_thoughts = "\n".join(reference_data.get("expected_thoughts", {}).get(mode, []))
             workflow_thoughts = "\n".join(step.thoughts for step in workflow.steps if not hasattr(step, "is_final"))
             thoughts_score = cls._string_embedding_score(workflow_thoughts, reference_thoughts)
 
@@ -325,6 +334,7 @@ class MetricUtils:
 
             results.append({
                 "workflow_index": idx + 1,
+                "mode": mode,
                 "overall_score": overall_score,
                 "overall_weighted_score": overall_weighted_score,
                 "tool_scores": tool_scores,
@@ -338,7 +348,7 @@ class MetricUtils:
         # Print summary for all workflows
         cls._logger.log(logging.INFO, "Correctness Evaluation Results:")
         for result in results:
-            cls._logger.log(logging.INFO, f"  Workflow W{result['workflow_index']}:")
+            cls._logger.log(logging.INFO, f"  Workflow W{result['workflow_index']} ({result['mode']}):")
             cls._logger.log(logging.INFO, f"    Overall correctness score: {result['overall_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Overall weighted correctness score: {result['overall_weighted_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Tool call scores: {[f'{s:.3f}' for s in result['tool_scores']]}")
@@ -369,6 +379,56 @@ class MetricUtils:
         cls._logger.log(logging.INFO, f"  Average goal similarity score: {np.mean([r['goal_score'] for r in results]):.3f}")
         cls._logger.log(logging.INFO, f"  Average thoughts similarity score: {np.mean([r['thoughts_score'] for r in results]):.3f}")
     
+    @classmethod
+    def _detect_mode(cls, tool_counter: Counter, expected_tool_calls: Dict[str, Any]) -> str:
+        atomic_tools = set(expected_tool_calls.get("atomic", {}).keys())
+        macro_tools = set(expected_tool_calls.get("macro", {}).keys())
+
+        atomic_used = any(tool_counter.get(tool, 0) > 0 for tool in atomic_tools)
+        macro_used = any(tool_counter.get(tool, 0) > 0 for tool in macro_tools)
+
+        if atomic_used and macro_used:
+            return "invalid"
+        if macro_used:
+            return "macro"
+        return "atomic"
+    
+    @classmethod
+    def _get_branching_steps(cls, workflow: BaseModel) -> List[dict]:
+        return [
+            {
+                "prompt": step.prompt.lower(),
+                "thoughts": (getattr(step, "thoughts", "") or "").lower(),
+                "transition_count": len(step.transitions),
+                "conditions": [t.condition.lower() for t in step.transitions],
+            }
+            for step in workflow.steps
+            if not hasattr(step, "is_final")
+            and step.action == "call_llm"
+            and hasattr(step, "transitions")
+            and len(step.transitions) > 1
+        ]
+    
+    @classmethod
+    def _matches_branch_constraint(cls, step, constraint):
+        keywords = [kw.lower() for kw in constraint.get("keywords", [])]
+        expected_transitions = constraint.get("transitions", 0)
+
+        # 1. Intent match (prompt OR thoughts)
+        intent_match = any(
+            kw in step.get("prompt", "") or kw in step.get("thoughts", "")
+            for kw in keywords
+        )
+
+        if not intent_match:
+            return False
+
+        # 2. Structural match
+        if step.get("transition_count", 0) != expected_transitions:
+            return False
+
+        return True
+
     @classmethod
     def _get_score(cls, count: int, min_val: int, max_val: int) -> float:
         if (count >= min_val and count <= max_val):

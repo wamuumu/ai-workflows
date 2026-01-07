@@ -10,6 +10,7 @@ class CityAttractionsOutput(TypedDict):
 
 class ActivitiesOutput(TypedDict):
     city: str
+    activity_type: str
     activities: List[str]
 
 @tool(
@@ -68,7 +69,7 @@ def get_indoor_activities(city: str, limit: int = 10) -> ActivitiesOutput:
             if name:
                 activities.add(name)
         
-        return ActivitiesOutput(city=city, activities=list(activities))
+        return ActivitiesOutput(city=city, activity_type="indoor", activities=list(activities))
     except Exception as e:
         return {"error": str(e)}
 
@@ -98,6 +99,6 @@ def get_outdoor_activities(city: str, limit: int = 10) -> ActivitiesOutput:
             if name:
                 activities.add(name)
         
-        return ActivitiesOutput(city=city, activities=list(activities))
+        return ActivitiesOutput(city=city, activity_type="outdoor", activities=list(activities))
     except Exception as e:
         return {"error": str(e)}

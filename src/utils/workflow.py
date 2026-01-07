@@ -50,8 +50,17 @@ class WorkflowUtils:
 
         with open(filepath, "r", encoding="utf-8") as f:
             workflow_data = f.read()
+        
+        workflow_data = json.loads(workflow_data)
+        if workflow_data["type"] == "structured" and model.__name__ != "StructuredWorkflow":
+            print("Skipping non-matching workflow type.")
+            return
+        
+        if workflow_data["type"] == "linear" and model.__name__ != "LinearWorkflow":
+            print("Skipping non-matching workflow type.")
+            return
 
-        return model.model_validate_json(workflow_data)
+        return model.model_validate(workflow_data)
 
     @classmethod
     def list_workflows(cls) -> list[str]:
