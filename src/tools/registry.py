@@ -187,6 +187,32 @@ class ToolRegistry:
         """Retrieve tools by category."""
         cls.__ensure_initialized()
         return [tool for tool in cls._tools.values() if tool.category == category]
+
+    @classmethod
+    def get_all_tool_names(cls) -> List[str]:
+        """Retrieve all registered tool names."""
+        cls.__ensure_initialized()
+        return list(cls._tools.keys())
+
+    @classmethod
+    def get_all_input_keys(cls) -> List[str]:
+        """Retrieve all input keys from all registered tools."""
+        cls.__ensure_initialized()
+        input_keys = set()
+        for tool in cls._tools.values():
+            for input in tool.inputs:
+                input_keys.add(input["name"])
+        return list(input_keys)
+
+    @classmethod
+    def get_all_output_keys(cls) -> List[str]:
+        """Retrieve all output keys from all registered tools."""
+        cls.__ensure_initialized()
+        output_keys = set()
+        for tool in cls._tools.values():
+            for output in tool.outputs:
+                output_keys.add(output["key"])
+        return list(output_keys)
     
     @classmethod
     def to_prompt_format(cls, tools: List[Tool] = None, group_by_category: bool = True) -> str:

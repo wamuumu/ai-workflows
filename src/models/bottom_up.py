@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List
 
-# Phase 1: Tool Identification
 class ToolRequirement(BaseModel):
     tool_name: str = Field(..., description="Name of the required tool")
     purpose: str = Field(..., description="Why this tool is needed")
@@ -12,7 +11,6 @@ class ToolAnalysisResponse(BaseModel):
     required_tools: List[ToolRequirement] = Field(..., description="All tools needed to accomplish the task")
     reasoning: str = Field(..., description="Overall reasoning for tool selection")
 
-# Phase 3: Control Flow
 class ControlFlowDecision(BaseModel):
     decision_point: str = Field(..., description="Where decision/branching is needed (step_id or 'none')")
     decision_type: str = Field(..., description="Type: 'branching', 'conditional', or 'none'")
