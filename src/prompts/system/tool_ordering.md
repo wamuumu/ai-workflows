@@ -9,12 +9,9 @@ Given a set of required tools, determine the optimal execution order based on da
    - User request (initial data)
    - Outputs of previous tool calls
 3. Order tools to minimize waiting and maximize efficiency
-4. Assign sequential step IDs: step_1, step_2, step_3, etc.
-5. Track dependencies using the step IDs
 
 ## Important
 - Some tools may need to be called multiple times (e.g., for different branches)
-- If unsure about exact dependencies, err on the side of more dependencies
 - Ensure the ordering is logically sound and executable
 
 ## Goal

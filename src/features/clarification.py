@@ -1,5 +1,4 @@
-import time
-
+from models.responses.message_response import MessageResponse
 from features.base import FeatureBase
 from tools.registry import ToolRegistry 
 from utils.prompt import PromptUtils
@@ -28,37 +27,39 @@ class ChatClarificationFeature(FeatureBase):
         if not agents.chatter:
             raise ValueError("Chatter agent not found.")
 
-        chat_session = agents.chatter.init_chat(chat_prompt_with_tools)
+        chat_session = agents.chatter.init_structured_chat(chat_prompt_with_tools, MessageResponse)
         next_message = user_prompt
 
         while True:
-            retry = 0
-            while retry < max_retries:
-                try:
-                    response = chat_session.send_message(next_message)
-                    break
-                except Exception as e:
-                    retry += 1
-                    retry_time = 2 ** retry
-                    print(f"Chat clarification retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                    time.sleep(retry_time)
-                
-            if retry == max_retries:
-                raise RuntimeError("Max retries exceeded during chat clarification.")
             
-            print(f"\nLLM: {response}\n")
+            response = chat_session.send_message(next_message, max_retries=max_retries)
 
-            if "END_CLARIFICATIONS" in response.upper().strip():
+            try:
+                message_response = MessageResponse.model_validate(response)
+            except Exception as e:
+                raise ValueError(f"Invalid message response format: {e}")
+            
+            if hasattr(message_response.result, "end_clarifications") and message_response.result.end_clarifications:
                 break
+            
+            if hasattr(message_response.result, "message") and message_response.result.message:
+                print(f"\nLLM: {message_response.result.message}\n")
             else:
-                next_message = input("User: ")
+                print("\nLLM did not provide a message.\n")
+            
+            next_message = input("User: ")
         
         messages = chat_session.get_history()
-        history = "\n".join([f"{msg.role.capitalize()}: {msg.parts[0].text}" for msg in messages[1:]])  # Skip chat system prompt
 
-        system_prompt = PromptUtils.get_system_prompt("workflow_generation")
-        system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(), chat_history=history)
+        history = ""
+        for msg in messages[2:]:  # Skip system prompt and first user message
+            if msg.role == "assistant":
+                struct_msg = MessageResponse.model_validate_json(msg.parts[0].text)
+                if hasattr(struct_msg.result, "message") and struct_msg.result.message:
+                    history += f"{msg.role.capitalize()}: {struct_msg.result.message}\n"
+            else:
+                history += f"{msg.role.capitalize()}: {msg.parts[0].text}\n"
         
-        context.prompt = system_prompt_with_tools
+        context.prompt = PromptUtils.inject(user_prompt, history=history)
 
         return context

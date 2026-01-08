@@ -1,6 +1,6 @@
 import argparse
 
-from models import LinearWorkflow, StructuredWorkflow
+from models.workflows import LinearWorkflow, StructuredWorkflow
 from utils.workflow import WorkflowUtils, EXECUTIONS, WORKFLOWS
 from utils.metric import MetricUtils
 from pathlib import Path

@@ -1,4 +1,4 @@
 from strategies.monolithic import MonolithicStrategy
-from strategies.hierarchical import HierarchicalStrategy
+from strategies.old.hierarchical import HierarchicalStrategy
 from strategies.incremental import IncrementalStrategy
 from strategies.bottom import BottomUpStrategy

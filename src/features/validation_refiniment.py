@@ -1,5 +1,4 @@
-import time
-
+from models.responses.review_response import ReviewResponse
 from features.base import FeatureBase
 from tools.registry import ToolRegistry 
 from utils.prompt import PromptUtils
@@ -44,7 +43,7 @@ class ValidationRefinementFeature(FeatureBase):
         if not agents.reviewer:
             raise ValueError("Reviewer agent not found.")
         
-        reviewer_chat = agents.reviewer.init_chat(review_prompt_with_tools)
+        reviewer_chat = agents.reviewer.init_structured_chat(review_prompt_with_tools, ReviewResponse)
         refiner_chat = agents.refiner.init_structured_chat(refine_prompt_with_tools, workflow.__class__)
         
         for round in range(self.max_rounds):
@@ -52,45 +51,26 @@ class ValidationRefinementFeature(FeatureBase):
             next_message = f"Current Workflow State: {workflow_json}"
 
             # Review phase
-            retry = 0
-            while retry < max_retries:
-                try:
-                    review_response = reviewer_chat.send_message(next_message, category="review")
-                    break
-                except Exception as e:
-                    retry += 1
-                    retry_time = 2 ** retry
-                    print(f"Review retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                    time.sleep(retry_time)
-            
-            if retry == max_retries:
-                raise RuntimeError("Max retries exceeded during workflow review.")
+            review_response = reviewer_chat.send_message(next_message, category="review", max_retries=max_retries)
+
+            try:
+                review = ReviewResponse.model_validate(review_response)
+            except Exception as e:
+                raise ValueError(f"Invalid review response format: {e}")
 
             if debug:
                 print(f"\nRound {round+1} review completed:")
-                print(f"  Review Comments: {review_response}\n")
+                print(f"  Review Response: {review.model_dump_json(indent=2)}\n")
                 input("Press Enter to continue or Ctrl+C to exit...")
             
-            if "END_REVIEW" in review_response.upper().strip():
+            if hasattr(review.result, "end_review") and review.result.end_review:
                 break
 
-            next_message = f"Reviewer Comments: {review_response}"
+            next_message = f"Reviewer Comments: {review.model_dump_json(indent=2)}"
 
             # Refinement phase
-            retry = 0
-            while retry < max_retries:
-                try:
-                    context.workflow = refiner_chat.send_message(next_message, category="refinement")
-                    workflow_json = context.workflow.model_dump_json(indent=2)
-                    break
-                except Exception as e:
-                    retry += 1
-                    retry_time = 2 ** retry
-                    print(f"Refinement retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                    time.sleep(retry_time)
-            
-            if retry == max_retries:
-                raise RuntimeError("Max retries exceeded during workflow refinement.")
+            context.workflow = refiner_chat.send_message(next_message, category="refinement", max_retries=max_retries)
+            workflow_json = context.workflow.model_dump_json(indent=2)
 
             if debug:
                 print(f"\nRound {round+1} refinement completed:")

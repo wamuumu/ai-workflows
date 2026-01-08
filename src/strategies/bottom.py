@@ -1,6 +1,4 @@
-import time
-
-from models.bottom_up import ToolAnalysisResponse, ControlFlowResponse
+from models.responses.bottom_up_analysis import ToolAnalysisResponse, ToolOrderingResponse, ControlFlowResponse
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
@@ -30,56 +28,25 @@ class BottomUpStrategy(StrategyBase):
             raise ValueError("Planner agent not found (used for analysis phases).")
 
         # Phase 1: Identify required tools
-        retry = 0
-        while retry < max_retries:
-            try:
-                tool_analysis = self._identify_tools(agents.planner, user_prompt, available_tools, debug)
-                break
-            except Exception as e:
-                retry += 1
-                retry_time = 2 ** retry
-                print(f"Identification retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                time.sleep(retry_time)
+        tool_analysis = self._identify_tools(agents.planner, user_prompt, available_tools, max_retries, debug)
         
-        if retry == max_retries:
-            raise RuntimeError("Max retries exceeded during tool identification.")
-        
-        # Phase 2: Identify control flow needs
-        retry = 0
-        while retry < max_retries:
-            try:
-                control_flow = self._identify_control_flow(agents.planner, user_prompt, tool_analysis, debug)
-                break
-            except Exception as e:
-                retry += 1
-                retry_time = 2 ** retry
-                print(f"Control flow retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                time.sleep(retry_time)
+        # Phase 2: Order tool calls
+        tool_ordering = self._order_tools(agents.planner, user_prompt, tool_analysis, max_retries, debug)
 
-        if retry == max_retries:
-            raise RuntimeError("Max retries exceeded during flow control identification.")
+        # Phase 3: Identify control flow needs
+        control_flow = self._identify_control_flow(agents.planner, user_prompt, tool_ordering, max_retries, debug)
         
-        # Phase 3: Assemble complete workflow
-        retry = 0
-        while retry < max_retries:
-            try:
-                return self._assemble_workflow(
-                    agents.generator,
-                    user_prompt,
-                    tool_analysis,
-                    control_flow,
-                    response_model
-                )
-            except Exception as e:
-                retry += 1
-                retry_time = 2 ** retry
-                print(f"Assemble retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                time.sleep(retry_time)
-        
-        if retry == max_retries:
-            raise RuntimeError("Max retries exceeded during workflow assemble.")
+        # Phase 4: Assemble complete workflow
+        return self._assemble_workflow(
+            agents.generator,
+            user_prompt,
+            tool_analysis,
+            control_flow,
+            response_model,
+            max_retries
+        )
 
-    def _identify_tools(self, agent, user_prompt: str, available_tools: list, debug: bool) -> ToolAnalysisResponse:
+    def _identify_tools(self, agent, user_prompt: str, available_tools: list, max_retries: int, debug: bool) -> ToolAnalysisResponse:
         """Phase 1: Identify which tools are needed."""
         
         system_prompt = PromptUtils.get_system_prompt("tool_identification")
@@ -91,7 +58,8 @@ class BottomUpStrategy(StrategyBase):
         response = agent.generate_structured_content(
             system_prompt_with_tools,
             user_prompt,
-            ToolAnalysisResponse
+            response_model=ToolAnalysisResponse,
+            max_retries=max_retries
         )
         
         if debug:
@@ -106,24 +74,49 @@ class BottomUpStrategy(StrategyBase):
         
         return response
 
-    def _identify_control_flow(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, debug: bool) -> ControlFlowResponse:
-        """Phase 2: Identify where control flow (branching, conditionals) is needed."""
-
-        tools = ""
-        for tool in tool_analysis.required_tools:
-            tools += ToolRegistry.get(tool.tool_name).to_prompt_format() + "\n"
+    def _order_tools(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, max_retries: int, debug: bool) -> ToolOrderingResponse:
+        """Phase 2: Determine execution order of tool calls."""
         
-        system_prompt = PromptUtils.get_system_prompt("flow_identification")
-        context = PromptUtils.inject(user_prompt, ordered_tools=tools)
+        tool_list = "\n".join([
+            f"- {t.tool_name}: {t.purpose}\n  Inputs: {', '.join(t.inputs_needed)}\n  Outputs: {', '.join(t.outputs_produced)}"
+            for t in tool_analysis.required_tools
+        ])
+        
+        system_prompt = PromptUtils.get_system_prompt("tool_ordering")
+        context = PromptUtils.inject(user_prompt, required_tools=tool_list)
 
         response = agent.generate_structured_content(
             system_prompt,
             context,
-            ControlFlowResponse
+            response_model=ToolOrderingResponse,
+            max_retries=max_retries
         )
         
         if debug:
-            print("\n=== PHASE 2: Control Flow Identification ===")
+            print("\n=== PHASE 2: Tool Ordering ===")
+            print(f"Reasoning: {response.reasoning}")
+            print(f"Ordered calls ({len(response.ordered_calls)}):")
+            input("Press Enter to continue...")
+        
+        return response
+
+    def _identify_control_flow(self, agent, user_prompt: str, tool_ordering: ToolOrderingResponse, max_retries: int, debug: bool) -> ControlFlowResponse:
+        """Phase 3: Identify where control flow (branching, conditionals) is needed."""
+        
+        tool_sequence = "\n".join([f"{i+1}. {tool}" for i, tool in enumerate(tool_ordering.ordered_calls)])
+
+        system_prompt = PromptUtils.get_system_prompt("flow_identification")
+        context = PromptUtils.inject(user_prompt, ordered_tools=tool_sequence)
+
+        response = agent.generate_structured_content(
+            system_prompt,
+            context,
+            response_model=ControlFlowResponse,
+            max_retries=max_retries
+        )
+        
+        if debug:
+            print("\n=== PHASE 3: Control Flow Identification ===")
             print(f"Reasoning: {response.reasoning}")
             print(f"Control decisions ({len(response.control_decisions)}):")
             for decision in response.control_decisions:
@@ -134,7 +127,7 @@ class BottomUpStrategy(StrategyBase):
         
         return response
 
-    def _assemble_workflow(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, control_flow: ControlFlowResponse, response_model):
+    def _assemble_workflow(self, agent, user_prompt: str, tool_analysis: ToolAnalysisResponse, control_flow: ControlFlowResponse, response_model, max_retries: int):
         """Phase 3: Assemble complete workflow from analysis."""
         
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
@@ -174,10 +167,9 @@ class BottomUpStrategy(StrategyBase):
         - Your job is to implement them with proper parameters and transitions
         - Maintain the step IDs from the analysis"""
         
-        workflow = agent.generate_structured_content(
+        return agent.generate_structured_content(
             system_prompt,
             assembly_context,
-            response_model
+            response_model=response_model,
+            max_retries=max_retries
         )
-        
-        return workflow

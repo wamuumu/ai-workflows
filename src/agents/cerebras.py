@@ -28,26 +28,36 @@ class CerebrasAgent(AgentBase):
         self.client = Cerebras()
         self.model_name = model_name
 
-    def generate_content(self, system_prompt: str, user_prompt: str, category: str = "generation") -> str:
+    def generate_content(self, system_prompt: str, user_prompt: str, category: str = "generation", max_retries: int = 5) -> str:
         """Private method to call the LLM and get a text response."""
 
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
-
-        start = time.time()
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            stream=False
-        )
-        end = time.time()
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                start = time.time()
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    stream=False
+                )
+                end = time.time()
+                break
+            except Exception as e:
+                print(f"Attempt {attempt} failed: {e}")
+                if attempt == max_retries:
+                    raise e
+                sleep_time = 2 ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+        
         MetricUtils.update(category, start, end, response.usage.total_tokens)
-
         return response.choices[0].message.content
 
-    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel, category: str = "generation") -> BaseModel:
+    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel, category: str = "generation", max_retries: int = 5) -> BaseModel:
         """Private method to get the structured response from the model."""
         
         messages = [
@@ -55,20 +65,31 @@ class CerebrasAgent(AgentBase):
             {"role": "user", "content": user_prompt}
         ]
 
-        start = time.time()
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "workflow_schema",
-                    "strict": True,
-                    "schema": response_model.model_json_schema()
-                }
-            }
-        )
-        end = time.time()
+        for attempt in range(1, max_retries + 1):
+            try:
+                start = time.time()
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "workflow_schema",
+                            "strict": True,
+                            "schema": response_model.model_json_schema()
+                        }
+                    }
+                )
+                end = time.time()
+                break
+            except Exception as e:
+                print(f"Attempt {attempt} failed: {e}")
+                if attempt == max_retries:
+                    raise e
+                sleep_time = 2 ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+    
         MetricUtils.update(category, start, end, response.usage.total_tokens)
 
         try:
@@ -85,18 +106,29 @@ class CerebrasAgent(AgentBase):
                 self.system_prompt = system_prompt
                 self.messages = [{"role": "system", "content": system_prompt}]
             
-            def send_message(self, message: str, category: str = "chat") -> str:
+            def send_message(self, message: str, category: str = "chat", max_retries: int = 5) -> str:
                 """Send a message in chat and return the response text."""
                 
                 self.messages.append({"role": "user", "content": message})
                 
-                start = time.time()
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=self.messages,
-                    stream=False
-                )
-                end = time.time()
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        start = time.time()
+                        response = self.client.chat.completions.create(
+                            model=self.model_name,
+                            messages=self.messages,
+                            stream=False
+                        )
+                        end = time.time()
+                        break
+                    except Exception as e:
+                        print(f"Attempt {attempt} failed: {e}")
+                        if attempt == max_retries:
+                            raise e
+                        sleep_time = 2 ** attempt
+                        print(f"Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                
                 MetricUtils.update(category, start, end, response.usage.total_tokens)
                 
                 assistant_message = response.choices[0].message.content
@@ -125,25 +157,36 @@ class CerebrasAgent(AgentBase):
                 self.response_model = response_model
                 self.messages = [{"role": "system", "content": system_prompt}]
             
-            def send_message(self, message: str, category: str = "chat") -> BaseModel:
+            def send_message(self, message: str, category: str = "chat", max_retries: int = 5) -> BaseModel:
                 """Send a message in chat and return the response in JSON format."""
 
                 self.messages.append({"role": "user", "content": message})
                 
-                start = time.time()
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=self.messages,
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "structured_response_schema",
-                            "strict": True,
-                            "schema": self.response_model.model_json_schema()
-                        }
-                    }
-                )
-                end = time.time()
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        start = time.time()
+                        response = self.client.chat.completions.create(
+                            model=self.model_name,
+                            messages=self.messages,
+                            response_format={
+                                "type": "json_schema",
+                                "json_schema": {
+                                    "name": "structured_response_schema",
+                                    "strict": True,
+                                    "schema": self.response_model.model_json_schema()
+                                }
+                            }
+                        )
+                        end = time.time()
+                        break
+                    except Exception as e:
+                        print(f"Attempt {attempt} failed: {e}")
+                        if attempt == max_retries:
+                            raise e
+                        sleep_time = 2 ** attempt
+                        print(f"Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                
                 MetricUtils.update(category, start, end, response.usage.total_tokens)
                 
                 assistant_message = response.choices[0].message.content

@@ -27,33 +27,56 @@ class GeminiAgent(AgentBase):
         self.client = Client()
         self.model_name = model_name
 
-    def generate_content(self, system_prompt: str, user_prompt: str, category: str = "generation") -> str:
+    def generate_content(self, system_prompt: str, user_prompt: str, category: str = "generation", max_retries: int = 5) -> str:
         
-        start = time.time()
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=user_prompt,
-            config=GenerateContentConfig(
-                system_instruction=system_prompt
-            )
-        )
-        end = time.time()
+        for attempt in range(1, max_retries + 1):
+            try:
+                start = time.time()
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=user_prompt,
+                    config=GenerateContentConfig(
+                        system_instruction=system_prompt
+                    )
+                )
+                end = time.time()
+                break
+            except Exception as e:
+                print(f"Attempt {attempt} failed: {e}")
+                if attempt == max_retries:
+                    raise e
+                sleep_time = 2 ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+
         MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
 
         return response.text
             
-    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel, category: str = "generation") -> BaseModel:
-        start = time.time()
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=user_prompt,
-            config=GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type= 'application/json',
-                response_schema=response_model
-            )
-        )
-        end = time.time()
+    def generate_structured_content(self, system_prompt: str, user_prompt: str, response_model: BaseModel, category: str = "generation", max_retries: int = 5) -> BaseModel:
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                start = time.time()
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=user_prompt,
+                    config=GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        response_mime_type= 'application/json',
+                        response_schema=response_model
+                    )
+                )
+                end = time.time()
+                break
+            except Exception as e:
+                print(f"Attempt {attempt} failed: {e}")
+                if attempt == max_retries:
+                    raise e
+                sleep_time = 2 ** attempt
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+        
         MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
 
         try:
@@ -72,12 +95,23 @@ class GeminiAgent(AgentBase):
                     )
                 )
 
-            def send_message(self, message: str, category: str = "chat") -> str:
+            def send_message(self, message: str, category: str = "chat", max_retries: int = 5) -> str:
                 """Send a message in chat and return the response text."""
                 
-                start = time.time()
-                response = self.chat_instance.send_message(message)
-                end = time.time()
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        start = time.time()
+                        response = self.chat_instance.send_message(message)
+                        end = time.time()
+                        break
+                    except Exception as e:
+                        print(f"Attempt {attempt} failed: {e}")
+                        if attempt == max_retries:
+                            raise e
+                        sleep_time = 2 ** attempt
+                        print(f"Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                
                 MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
                 
                 return response.text
@@ -101,12 +135,23 @@ class GeminiAgent(AgentBase):
                 )
                 self.response_model = response_model
 
-            def send_message(self, message: str, category: str = "chat") -> BaseModel:
+            def send_message(self, message: str, category: str = "chat", max_retries: int = 5) -> BaseModel:
                 """Send a message in chat and return the response text."""
                 
-                start = time.time()
-                response = self.chat_instance.send_message(message)
-                end = time.time()
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        start = time.time()
+                        response = self.chat_instance.send_message(message)
+                        end = time.time()
+                        break
+                    except Exception as e:
+                        print(f"Attempt {attempt} failed: {e}")
+                        if attempt == max_retries:
+                            raise e
+                        sleep_time = 2 ** attempt
+                        print(f"Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                
                 MetricUtils.update(category, start, end, response.usage_metadata.total_token_count)
                 
                 try:

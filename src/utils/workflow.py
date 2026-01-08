@@ -51,16 +51,12 @@ class WorkflowUtils:
         with open(filepath, "r", encoding="utf-8") as f:
             workflow_data = f.read()
         
-        workflow_data = json.loads(workflow_data)
-        if workflow_data["type"] == "structured" and model.__name__ != "StructuredWorkflow":
-            print("Skipping non-matching workflow type.")
-            return
-        
-        if workflow_data["type"] == "linear" and model.__name__ != "LinearWorkflow":
-            print("Skipping non-matching workflow type.")
-            return
-
-        return model.model_validate(workflow_data)
+        try:
+            workflow_data = json.loads(workflow_data)
+            return model.model_validate(workflow_data)
+        except Exception as e:
+            print(f"Error loading workflow: {e}")
+            return None
 
     @classmethod
     def list_workflows(cls) -> list[str]:
@@ -73,7 +69,7 @@ class WorkflowUtils:
     def save_visualization(cls, workflow: BaseModel) -> str:
         """Create a visual representation of the workflow using pyvis."""
         
-        workflow_json = workflow.model_dump()
+        wf_dict = workflow.model_dump()
         
         net = Network(
             width="100%",
@@ -126,34 +122,38 @@ class WorkflowUtils:
             )
 
         # Add nodes
-        for step in workflow_json["steps"]:
+        for step in wf_dict.get("steps", []):
             
-            is_final = "is_final" in step and step["is_final"]
+            step_id = step.get("id")
+            step_action = step.get("action")
+            is_final = step.get("is_final")
+
             if is_final:
                 task_type = "Final Step"
                 color = "#ef4444"  # Red for final steps
-            elif step["action"] == "call_tool":
-                tool_name = step["tool_name"]
-                tool_parameters = "\n".join(f"{html.escape(p['key'])}: {html.escape(str(p['value']))}" for p in step["parameters"]) or "None"
+            elif step_action == "call_tool":
+                tool_name = step.get("tool_name")
+                tool_parameters = "\n".join(f"  - {html.escape(p.get("key"))}: {html.escape(str(p.get('value')))}" for p in step.get("parameters", [])) or "None"
                 task_type = f"Tool({tool_name})"
                 color = "#3b82f6"  # Blue for tools
             else:
                 task_type = "LLM call"
-                prompt = step["prompt"]
+                prompt = step.get("prompt")
                 color = "#8b5cf6"  # Purple for LLM calls
             
-            if step["id"] == "step_1":
+            if step_id == 1:
                 color = "#10b981"  # Green for the first step
 
             title = (
-                f"{step['id']}\n"
+                f"Step: {step_id}\n"
                 f"Type: {task_type}\n\n"
             )
 
-            if not is_final and step["action"] == "call_tool":
-                title += f"Tool Name: {html.escape(tool_name)}\nParameters:\n{tool_parameters}\n\n"
-            elif not is_final and step["action"] == "call_llm":
-                title += f"Prompt:\n{html.escape(prompt)}\n\n"
+            if not is_final:
+                if step_action == "call_tool":
+                    title += f"Tool Name: {html.escape(tool_name)}\nParameters:\n{tool_parameters}\n\n"
+                else:
+                    title += f"Prompt:\n{html.escape(prompt)}\n\n"
 
             net.add_node(
                 step["id"],
@@ -163,19 +163,16 @@ class WorkflowUtils:
                 font={"color": "white"}
             )
 
-        # Add edges
-        if workflow.__class__.__name__ == "StructuredWorkflow":
-            for step in workflow_json["steps"]:
-                is_final = "is_final" in step and step["is_final"]
-                if not is_final:
-                    for transition in step["transitions"]:
-                        net.add_edge(step["id"], transition["next_step"], label=transition["condition"])
-        else:
-            # Linear workflow
-            for i in range(len(workflow_json["steps"]) - 1):
-                is_final = "is_final" in workflow_json["steps"][i] and workflow_json["steps"][i]["is_final"]
-                if not is_final:
-                    net.add_edge(workflow_json["steps"][i]["id"], workflow_json["steps"][i + 1]["id"])
+        for step in wf_dict.get("steps", []):
+            step_id = step.get("id")
+            is_final = step.get("is_final")
+            if not is_final:
+                transitions = step.get("transitions", [])
+                if transitions:
+                    for transition in transitions:
+                        net.add_edge(step_id, transition.get("next_step"), label=transition.get("condition"))
+                else:
+                    net.add_edge(step_id, step_id + 1, label="always")
     
         # Create output directory if not exists
         cls._check_folder(VISUALIZATIONS)

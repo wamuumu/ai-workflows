@@ -1,10 +1,8 @@
 import argparse
 import random
 
-from agents.google import GeminiAgent, GeminiModel
-from agents.cerebras import CerebrasAgent, CerebrasModel
 from features import ChatClarificationFeature, RefinementFeature, ValidationRefinementFeature
-from models import LinearWorkflow, StructuredWorkflow
+from models.workflows import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
 from strategies import MonolithicStrategy, HierarchicalStrategy, IncrementalStrategy, BottomUpStrategy
 from tools.registry import ToolRegistry
@@ -19,9 +17,9 @@ from utils.workflow import WorkflowUtils
 def _strategy_factory(name: str):
     mapping = {
         "monolithic": MonolithicStrategy,
-        "hierarchical": HierarchicalStrategy,
+        # "hierarchical": HierarchicalStrategy,
         "incremental": IncrementalStrategy,
-        "bottomup": BottomUpStrategy,
+        "bottomup": BottomUpStrategy
     }
     cls = mapping.get(name.lower())
     if cls is None:
@@ -85,7 +83,7 @@ def main():
     argparser.add_argument("--prompt", type=str, default="weather_activity_plan", help="User prompt name to use")
 
     # Strategy & response model
-    argparser.add_argument("--strategy", type=str, choices=["monolithic", "hierarchical", "incremental", "bottomup"], default="monolithic",
+    argparser.add_argument("--strategy", type=str, choices=["monolithic", "incremental", "bottomup"], default="monolithic",
                             help="Which orchestration strategy to use (default: monolithic)")
     argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
                             help="Which workflow class to use for generation / loading (default: structured)")

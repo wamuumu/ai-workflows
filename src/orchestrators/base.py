@@ -11,7 +11,7 @@ from agents.base import AgentBase
 from agents.google import GeminiAgent, GeminiModel
 from agents.cerebras import CerebrasAgent, CerebrasModel
 from features.base import FeatureBase
-from models.execution_response import ExecutionResponse
+from models.responses.execution_response import ExecutionResponse
 from strategies.base import StrategyBase
 from tools.registry import Tool, ToolRegistry
 from utils.prompt import PromptUtils
@@ -37,8 +37,8 @@ def working_directory(path):
 class AgentSchema(BaseModel):
     generator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
     reviewer: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
-    planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
-    chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
+    planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
     refiner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
     executor: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
 
@@ -93,17 +93,15 @@ class ConfigurableOrchestrator:
         
         self.logger.log(logging.INFO, f"Workflow generation started...")
         context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt, available_tools=self.available_tools)
-        self.logger.log(logging.INFO, f"Initial context: {context.model_dump_json(indent=2)}")
+
+        if debug:
+            self.logger.log(logging.INFO, f"Initial context: {context.model_dump_json(indent=2)}")
         
         for feature in self.pre_features:
             context: Context = feature.apply(context, max_retries, debug)
             self.logger.log(logging.INFO, f"Context after pre-feature '{feature.__class__.__name__}': {context.model_dump_json(indent=2)}")
 
         context.workflow = self.strategy.generate(context, max_retries, debug)
-        
-        if not context.workflow:
-            self.logger.log(logging.ERROR, f"Failed to generate workflow after {max_retries} retries.")
-            raise RuntimeError(f"Failed to generate workflow after {max_retries} retries.")
 
         self.logger.log(logging.INFO, f"Generated workflow: {context.workflow.model_dump_json(indent=2)}")
 
@@ -133,7 +131,7 @@ class ConfigurableOrchestrator:
         self.logger.log(logging.INFO, f"Workflow execution started...")
 
         if debug:
-            print("Running workflow...")
+            self.logger.log(logging.INFO, "Running workflow...")
             input("Press Enter to continue or Ctrl+C to exit...")
 
         state = {}
@@ -147,20 +145,7 @@ class ConfigurableOrchestrator:
 
         while True:
 
-            retry = 0
-            while retry < max_retries:
-                try:
-                    response = chat_session.send_message(next_message, category="execution")
-                    break
-                except Exception as e:
-                    retry += 1
-                    retry_time = 2 ** retry
-                    self.logger.log(logging.ERROR, f"Error during workflow execution at step with state '{json.dumps(state)}': {e}. Retrying {retry}/{max_retries} in {retry_time} seconds...")
-                    time.sleep(retry_time)
-            
-            if not response:
-                self.logger.log(logging.ERROR, f"No response received during workflow execution at step with state '{json.dumps(state)}'.")
-                raise RuntimeError(f"No response received during workflow execution at step with state '{json.dumps(state)}'.")
+            response = chat_session.send_message(next_message, category="execution", max_retries=max_retries)
             
             try:
                 response_schema = ExecutionResponse.model_validate(response)
@@ -172,12 +157,12 @@ class ConfigurableOrchestrator:
             self.logger.log(logging.INFO, f"Execution response received: {json.dumps(payload, indent=2)}")
             
             if debug:
-                print("Response received:", json.dumps(payload, indent=2), "\n")
+                self.logger.log(logging.INFO, f"Response received: {json.dumps(payload, indent=2)}")
                 input("Press Enter to continue or Ctrl+C to exit...")
             
             step = payload.get("step")
 
-            step_id = step.get("id")
+            step_id = str(step.get("id"))
             step_action = step.get("action")
             is_final = step.get("is_final")
 
@@ -187,16 +172,16 @@ class ConfigurableOrchestrator:
             
             if step_action == "call_tool":
                 tool_name = step.get("tool_name")
-                tool_params = {p["key"]: p["value"] for p in step.get("tool_parameters")}
+                parameters = {p.get("key"): p.get("value") for p in step.get("parameters", [])}
 
                 if debug:
-                    print(f"Calling tool '{tool_name}' with params: {tool_params}\n")
+                    self.logger.log(logging.INFO, f"Calling tool '{tool_name}' with: {parameters}")
                     input("Press Enter to continue or Ctrl+C to exit...")
                 
                 try:
                     with working_directory(RUNTIME_DIR):
                         tool = ToolRegistry.get(tool_name)
-                        results = tool.run(**tool_params)
+                        results = tool.run(**parameters)
                         self.logger.log(logging.INFO, f"Tool '{tool_name}' for step '{step_id}' executed with results: {json.dumps(results, indent=2)}")
                 except Exception as e:
                     self.logger.log(logging.ERROR, f"Error executing tool '{tool_name}': {e}")
@@ -208,7 +193,7 @@ class ConfigurableOrchestrator:
                 })
                 
                 if debug:
-                    print(f"Tool '{tool_name}' returned results: {results}\n")
+                    self.logger.log(logging.INFO, f"Tool '{tool_name}' returned: {results}")
                     input("Press Enter to continue or Ctrl+C to exit...")
             elif step_action == "call_llm":
                 response = step.get("response")
@@ -221,7 +206,7 @@ class ConfigurableOrchestrator:
                 })
 
                 if debug:
-                    print(f"LLM action for step '{step_id}' with response: {response}\n")
+                    self.logger.log(logging.INFO, f"LLM action for step '{step_id}' with response: {response}")
                     input("Press Enter to continue or Ctrl+C to exit...")
             else:
                 self.logger.log(logging.ERROR, f"Unknown action '{step_action}' received during workflow execution.")

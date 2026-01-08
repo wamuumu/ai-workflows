@@ -1,5 +1,3 @@
-import time
-
 from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
@@ -28,15 +26,4 @@ class MonolithicStrategy(StrategyBase):
         system_prompt = PromptUtils.get_system_prompt("workflow_generation")
         system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
 
-        retry = 0
-        while retry < max_retries:
-            try:
-                return agents.generator.generate_structured_content(system_prompt_with_tools, user_prompt, response_model)
-            except Exception as e:
-                retry += 1
-                retry_time = 2 ** retry
-                print(f"Generation retry {retry}/{max_retries} after error: {e}. Retrying in {retry_time} seconds...")
-                time.sleep(retry_time)
-        
-        if retry == max_retries:
-            raise RuntimeError("Max retries exceeded during workflow generation.")
+        return agents.generator.generate_structured_content(system_prompt_with_tools, user_prompt, response_model, max_retries=max_retries)
