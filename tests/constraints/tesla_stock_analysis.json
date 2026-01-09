@@ -1,0 +1,58 @@
+{
+  "expected_tool_calls": {
+    "atomic": {
+      "get_news": {"min": 1, "max": 2},
+      "get_stock_price": {"min": 1, "max": 2},
+      "calculator": {"min": 0, "max": 2}
+    },
+    "macro": {},
+    "common": {
+      "send_email": {"min": 0, "max": 1}
+    }
+  },
+  "expected_llm_calls": {
+    "atomic": {"min": 3, "max": 7},
+    "macro": {"min": 3, "max": 7}
+  },
+  "expected_branch_transitions": {
+    "atomic": {
+      "stock_direction_check": {
+          "keywords": ["up", "down", "increased", "decreased", "higher", "lower", "rose", "fell", "positive", "negative"],
+          "transitions": 2
+      }
+    },
+    "macro": {
+      "stock_direction_check": {
+          "keywords": ["up", "down", "increased", "decreased", "higher", "lower", "rose", "fell", "positive", "negative"],
+          "transitions": 2
+      }
+    }
+  },
+  "expected_step_count_range": {
+    "atomic": {"min": 5, "max": 10},
+    "macro": {"min": 5, "max": 10}
+  },
+  "expected_goal": "Search Tesla stock news, determine if stock went up or down. If up, calculate $10,000 investment value and email result. If down, search analyst opinions and summarize.",
+  "expected_thoughts": {
+    "atomic": [
+      "Search for recent news about Tesla stock.",
+      "Determine if Tesla stock has gone up or down compared to last month.",
+      "Stock went up, calculate the current value of a $10,000 investment from last month.",
+      "Compose and send an email with the investment return results.",
+      "All tasks for the stock-up scenario are complete.",
+      "Stock went down, search for analyst opinions on Tesla.",
+      "Summarize the analyst opinions and commentary.",
+      "All tasks for the stock-down scenario are complete."
+    ],
+    "macro": [
+      "Search for recent news about Tesla stock.",
+      "Determine if Tesla stock has gone up or down compared to last month.",
+      "Stock went up, calculate the current value of a $10,000 investment from last month.",
+      "Compose and send an email with the investment return results.",
+      "All tasks for the stock-up scenario are complete.",
+      "Stock went down, search for analyst opinions on Tesla.",
+      "Summarize the analyst opinions and commentary.",
+      "All tasks for the stock-down scenario are complete."
+    ]
+  }
+}

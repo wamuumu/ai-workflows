@@ -1,0 +1,56 @@
+{
+  "expected_tool_calls": {
+    "atomic": {
+      "analyze_sentiment": {"min": 1, "max": 3},
+      "clean_text": {"min": 0, "max": 1},
+      "translate_text": {"min": 0, "max": 1}
+    },
+    "macro": {},
+    "common": {}
+  },
+  "expected_llm_calls": {
+    "atomic": {"min": 2, "max": 6},
+    "macro": {"min": 2, "max": 6}
+  },
+  "expected_branch_transitions": {
+    "atomic": {
+      "confidence_check": {
+          "keywords": ["confidence", "low", "uncertain", "threshold", "weak", "insufficient", "retry", "reclassify"],
+          "transitions": 2
+      }
+    },
+    "macro": {
+      "confidence_check": {
+          "keywords": ["confidence", "low", "uncertain", "threshold", "weak", "insufficient", "retry", "reclassify"],
+          "transitions": 2
+      }
+    }
+  },
+  "expected_step_count_range": {
+    "atomic": {"min": 3, "max": 8},
+    "macro": {"min": 3, "max": 8}
+  },
+  "expected_goal": "Classify input text using predefined labels. If confidence is low, apply preprocessing (cleaning, translation) and reclassify.",
+  "expected_thoughts": {
+    "atomic": [
+      "Classify the input text using the predefined labels.",
+      "Check the classification confidence score.",
+      "Confidence is high, classification is complete.",
+      "All tasks for the high-confidence scenario are complete.",
+      "Confidence is low, apply text cleaning preprocessing.",
+      "Translate the cleaned text to a standard language.",
+      "Reclassify the preprocessed text.",
+      "All tasks for the low-confidence scenario are complete."
+    ],
+    "macro": [
+      "Classify the input text using the predefined labels.",
+      "Check the classification confidence score.",
+      "Confidence is high, classification is complete.",
+      "All tasks for the high-confidence scenario are complete.",
+      "Confidence is low, apply text cleaning preprocessing.",
+      "Translate the cleaned text to a standard language.",
+      "Reclassify the preprocessed text.",
+      "All tasks for the low-confidence scenario are complete."
+    ]
+  }
+}
