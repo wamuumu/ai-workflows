@@ -5,30 +5,29 @@ from strategies.base import StrategyBase
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 
-#TODO: implement batch and sliding window optimizations
-
 class IncrementalStrategy(StrategyBase):
-    """Incremental construction strategy that builds workflows one step at a time.
+    """Incremental construction strategy that builds workflows in batches of 1-3 steps.
     
     Optimizations:
+    - Batch generation: Generates 1-3 steps per LLM call to reduce API calls
     - Sliding window context: Only keeps last K steps in full detail, summarizes older steps
-    - Early termination heuristics: Detects completion patterns without waiting for LLM flag
     """
 
-    def __init__(self, max_steps: int = 20, context_window_size: int = 4):
+    def __init__(self, max_steps: int = 20, context_window_size: int = 6):
         super().__init__()
         self.max_steps = max_steps
-        self.context_window_size = context_window_size  # Number of recent steps to keep in full detail
+        self.context_window_size = context_window_size  # Number of recent steps to keep in full detail (2 batches)
 
-    def _summarize_steps(self, steps: List, keep_last_n: int) -> str:
+    def _summarize_steps(self, steps: List) -> str:
         """Summarize older steps to reduce context size while preserving key information."""
-        if len(steps) <= keep_last_n:
+        
+        if len(steps) <= self.context_window_size:
             # All steps fit in window, return full representation
             return "\n".join([f"Step {i+1}: {s.model_dump_json()}" for i, s in enumerate(steps)])
         
         # Split into older (to summarize) and recent (to keep full)
-        older_steps = steps[:-keep_last_n]
-        recent_steps = steps[-keep_last_n:]
+        older_steps = steps[:-self.context_window_size]
+        recent_steps = steps[-self.context_window_size:]
         
         # Create compact summary of older steps
         summary_parts = ["[SUMMARIZED EARLIER STEPS]"]
@@ -74,14 +73,9 @@ class IncrementalStrategy(StrategyBase):
         system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
         
         if response_model.__class__.__name__ == "LinearWorkflow":
-            type = "linear"
             next_step_response_model = NextLinearStepBatch
         else:
-            type = "structured"
             next_step_response_model = NextStructuredStepBatch
-
-        # Create chat session for stateful generation
-        # chat_session = agents.generator.init_structured_chat(system_prompt_with_tools, next_step_response_model)
         
         # Initial message
         next_message = f"""User Request: {user_prompt} \n\n Current Workflow State: Empty (no steps yet)"""
@@ -89,28 +83,35 @@ class IncrementalStrategy(StrategyBase):
         # Incrementally build workflow
         while step_counter <= self.max_steps:
             
-            # Generate next step
-            # response = chat_session.send_message(next_message, category="generation")
+            # Generate next step(s)
             response = agents.generator.generate_structured_content(system_prompt_with_tools, next_message, next_step_response_model, max_retries=max_retries)
             
-            # if debug:
-            #     print(f"\nStep {step_counter} generated:")
-            #     print(f"  Reasoning: {response.reasoning}")
-            #     print(f"  Step: {response.step.model_dump_json(indent=2)}")
-            #     print(f"  Is complete: {response.is_complete}")
-            #     input("Press Enter to continue or Ctrl+C to exit...")
+            try:
+                # Validate response structure
+                parsed_response = next_step_response_model.model_validate(response)
+            except Exception as e:
+                raise ValueError(f"Invalid response structure at step {step_counter}: {e}")
+
+            generated_steps_count = len(parsed_response.steps)
+
+            if debug:
+                print(f"\nGenerated {generated_steps_count} step(s)")
+                print(f"  Reasoning: {parsed_response.reasoning}")
+                for step in parsed_response.steps:
+                    print(f"  Step: {step.model_dump_json(indent=2)}")
+                print(f"  Is complete: {parsed_response.is_complete}")
+                input("Press Enter to continue or Ctrl+C to exit...")
             
             # Add step to workflow
-            parsed_response = next_step_response_model.model_validate(response)
             steps.extend(parsed_response.steps)
             
-            # Check if workflow is complete (with early termination heuristics)
+            # Check if workflow is complete
             if parsed_response.is_complete:
                 break
             
             # Prepare next message with sliding window context
-            step_counter += 1
-            workflow_state = self._summarize_steps(steps, self.context_window_size)
+            step_counter += generated_steps_count
+            workflow_state = self._summarize_steps(steps)
             next_message = f"User Request: {user_prompt} \n\n Current Workflow State:\n{workflow_state}"
 
         if debug:
@@ -119,10 +120,9 @@ class IncrementalStrategy(StrategyBase):
         
         # Construct final workflow object
         workflow = response_model(
-            title=f"Incrementally Generated Workflow",
-            description=f"Workflow built step-by-step for: {user_prompt[:100]}",
+            title="N/A",
+            description="N/A",
             target_objective=user_prompt,
-            type=type,
             steps=steps
         )
         

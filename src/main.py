@@ -4,7 +4,7 @@ import random
 from features import ChatClarificationFeature, RefinementFeature, ValidationRefinementFeature
 from models.workflows import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
-from strategies import MonolithicStrategy, HierarchicalStrategy, IncrementalStrategy, BottomUpStrategy
+from strategies import MonolithicStrategy, IncrementalStrategy, BottomUpStrategy
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
@@ -17,7 +17,6 @@ from utils.workflow import WorkflowUtils
 def _strategy_factory(name: str):
     mapping = {
         "monolithic": MonolithicStrategy,
-        # "hierarchical": HierarchicalStrategy,
         "incremental": IncrementalStrategy,
         "bottomup": BottomUpStrategy
     }

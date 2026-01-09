@@ -1,19 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import List, Union, Literal
 
+from models.workflows.base import ToolParameter, BaseStep, FinalStep
 from tools.registry import ToolRegistry
-
-class ToolParameter(BaseModel):
-    """Parameter for a tool call."""
-    key: str = Field(..., description="Parameter key matching selected tool input schema", json_schema_extra={"enum": ToolRegistry.get_all_input_keys()})
-    value: Union[str, int, float, bool] = Field(
-        ..., 
-        description=(
-            "Literal value or reference to another step's output. "
-            "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
-            f"Valid 'output_field' values are: {', '.join(['response'] + ToolRegistry.get_all_output_keys())}"
-        )
-    )
 
 class Transition(BaseModel):
     """Defines conditional branching to next step.
@@ -28,18 +17,6 @@ class Transition(BaseModel):
         )
     )
     next_step: int = Field(..., description="Target step ID to transition to if condition is met")
-
-class BaseStep(BaseModel):
-    """Base for all workflow steps."""
-    id: int = Field(
-        ...,
-        description=(
-            "Sequential, unique step identifier. "
-            "Step IDs must start at 1 and increment by 1 for each subsequent step. "
-            "Do not repeat IDs across steps."
-        )
-    )
-    thoughts: str = Field(..., description="Reasoning for this step's purpose and logic")
 
 class ToolStep(BaseStep):
     """A single tool step in a structured workflow.
@@ -74,10 +51,6 @@ class LLMStep(BaseStep):
         ...,
         description="List of transitions defining control flow. Must be mutually exclusive conditions covering all outcomes."
     )
-
-class FinalStep(BaseStep):
-    """The final step in an execution path / branch of a structured workflow."""
-    is_final: bool = True
 
 class StructuredWorkflow(BaseModel):
     """A workflow consisting of steps with branching and conditional transitions."""
