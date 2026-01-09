@@ -129,11 +129,14 @@ class MetricUtils:
 
     @classmethod
     def _workflow_similarity(cls, a: BaseModel, b: BaseModel) -> float:
-        # Align steps
-        _, _, _, step_score = cls._align_steps(a.steps, b.steps)
+        # Align steps and get the mapping
+        matches, _, _, step_score = cls._align_steps(a.steps, b.steps)
+        
+        # Build ID mapping from alignment: a_id -> b_id
+        id_mapping = {m[0]: m[1] for m in matches}
 
-        # Compare transitions
-        transition_score = cls._compare_transitions(a.steps, b.steps)
+        # Compare transitions using alignment
+        transition_score = cls._compare_transitions(a.steps, b.steps, id_mapping)
 
         # Weighted: 70% steps, 30% transitions
         return 0.7 * step_score + 0.3 * transition_score
@@ -170,9 +173,17 @@ class MetricUtils:
 
     @classmethod
     def _step_similarity(cls, a: BaseModel, b: BaseModel) -> float:
+        # Check if steps are FinalSteps (check value, not just attribute existence)
+        a_is_final = getattr(a, 'is_final', False) == True
+        b_is_final = getattr(b, 'is_final', False) == True
+        
         # Final steps match only with final
-        if hasattr(a, 'is_final') or hasattr(b, 'is_final'):
-            return 1.0 if (hasattr(a, 'is_final') and a.is_final) and (hasattr(b, 'is_final') and b.is_final) else 0.0
+        if a_is_final or b_is_final:
+            return 1.0 if a_is_final and b_is_final else 0.0
+
+        # Non-final steps must have action attribute
+        if not hasattr(a, 'action') or not hasattr(b, 'action'):
+            return 0.0
 
         # Action must match
         if a.action != b.action:
@@ -201,9 +212,16 @@ class MetricUtils:
         return score / weight if weight else 0.0
 
     @classmethod
-    def _compare_transitions(cls, steps_a: List[BaseModel], steps_b: List[BaseModel]) -> float:
+    def _compare_transitions(cls, steps_a: List[BaseModel], steps_b: List[BaseModel], 
+                            id_mapping: Dict[int, int] = None) -> float:
         """
         Compare transition edges, including conditions.
+        Uses id_mapping to compare aligned steps rather than raw IDs.
+        
+        Args:
+            steps_a: Steps from workflow A
+            steps_b: Steps from workflow B  
+            id_mapping: Mapping from step IDs in A to aligned step IDs in B
         """
         edges_a = cls._extract_transitions(steps_a)
         edges_b = cls._extract_transitions(steps_b)
@@ -212,14 +230,25 @@ class MetricUtils:
             return 1.0
         if not edges_a or not edges_b:
             return 0.0
+        
+        if id_mapping is None:
+            id_mapping = {}
 
         total = 0.0
         for e_a in edges_a:
             best_sim = 0.0
             for e_b in edges_b:
-                from_sim = 1.0 if e_a[0] == e_b[0] else 0.0
-                to_sim = 1.0 if e_a[1] == e_b[1] else 0.0
-                cond_sim = cls._string_embedding_score(e_a[2], e_b[2])
+                # Use alignment mapping: check if e_a's from/to map to e_b's from/to
+                from_a, to_a, cond_a = e_a
+                from_b, to_b, cond_b = e_b
+                
+                # Check if 'from' steps are aligned
+                from_sim = 1.0 if id_mapping.get(from_a) == from_b else 0.0
+                # Check if 'to' steps are aligned  
+                to_sim = 1.0 if id_mapping.get(to_a) == to_b else 0.0
+                # Compare conditions semantically
+                cond_sim = cls._string_embedding_score(cond_a, cond_b)
+                
                 sim = 0.4 * from_sim + 0.4 * to_sim + 0.2 * cond_sim
                 if sim > best_sim:
                     best_sim = sim
@@ -257,8 +286,11 @@ class MetricUtils:
 
         results = []
         for idx, workflow in enumerate(workflows):
-            # Expected tool calls
-            tool_count = Counter(step.tool_name for step in workflow.steps if not hasattr(step, "is_final") and step.action == "call_tool")
+            # Expected tool calls (properly check for action attribute, not is_final existence)
+            tool_count = Counter(
+                step.tool_name for step in workflow.steps 
+                if hasattr(step, 'action') and step.action == "call_tool"
+            )
             expected_tool_calls = reference_data.get("expected_tool_calls", {})
 
             mode = cls._detect_mode(tool_count, expected_tool_calls)
@@ -279,8 +311,11 @@ class MetricUtils:
                     min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
                     tool_scores.append(cls._get_score(count, min_calls, max_calls))
 
-            # Expected LLM calls
-            llm_count = sum(1 for step in workflow.steps if not hasattr(step, "is_final") and step.action == "call_llm")
+            # Expected LLM calls (properly check for action attribute)
+            llm_count = sum(
+                1 for step in workflow.steps 
+                if hasattr(step, 'action') and step.action == "call_llm"
+            )
             expected_llm_calls = reference_data.get("expected_llm_calls", {}).get(mode, {})
             if expected_llm_calls:
                 min_calls, max_calls = expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf'))
@@ -288,8 +323,11 @@ class MetricUtils:
             else:
                 llm_score = 0.0
 
-            # Expected total steps
-            total_steps = sum(1 for step in workflow.steps if not hasattr(step, "is_final"))
+            # Expected total steps (exclude FinalSteps)
+            total_steps = sum(
+                1 for step in workflow.steps 
+                if not getattr(step, 'is_final', False)
+            )
             expected_total_steps = reference_data.get("expected_step_count_range", {}).get(mode, {})
             if expected_total_steps:
                 min_steps, max_steps = expected_total_steps.get("min", 0), expected_total_steps.get("max", float('inf'))
@@ -313,7 +351,10 @@ class MetricUtils:
             goal_score = cls._string_embedding_score(workflow.target_objective, reference_goal)
             
             reference_thoughts = "\n".join(reference_data.get("expected_thoughts", {}).get(mode, []))
-            workflow_thoughts = "\n".join(step.thoughts for step in workflow.steps if not hasattr(step, "is_final"))
+            workflow_thoughts = "\n".join(
+                step.thoughts for step in workflow.steps 
+                if not getattr(step, 'is_final', False)
+            )
             thoughts_score = cls._string_embedding_score(workflow_thoughts, reference_thoughts)
 
             # Overall correctness score
@@ -391,7 +432,21 @@ class MetricUtils:
             return "invalid"
         if macro_used:
             return "macro"
-        return "atomic"
+        if atomic_used:
+            return "atomic"
+        
+        # No expected tools used - check if there are common tools or default to atomic
+        common_tools = set(expected_tool_calls.get("common", {}).keys())
+        common_used = any(tool_counter.get(tool, 0) > 0 for tool in common_tools)
+        if common_used:
+            # Only common tools used, default to atomic mode
+            return "atomic"
+        
+        # No recognized tools at all - could be invalid or empty workflow
+        if sum(tool_counter.values()) == 0:
+            return "atomic"  # Empty workflow defaults to atomic
+        
+        return "invalid"  # Uses unknown tools
     
     @classmethod
     def _get_branching_steps(cls, workflow: BaseModel) -> List[dict]:
@@ -403,7 +458,7 @@ class MetricUtils:
                 "conditions": [t.condition.lower() for t in step.transitions],
             }
             for step in workflow.steps
-            if not hasattr(step, "is_final")
+            if hasattr(step, 'action')
             and step.action == "call_llm"
             and hasattr(step, "transitions")
             and len(step.transitions) > 1
@@ -709,3 +764,6 @@ class MetricUtils:
     def reset(cls) -> None:
         """Reset metrics for a new run."""
         cls._metrics = MetricSchema()
+        cls._embeddings.clear()
+        cls._similarities.clear()
+        cls._has_finished = False

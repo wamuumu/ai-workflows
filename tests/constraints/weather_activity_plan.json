@@ -35,7 +35,7 @@
     "atomic": {"min": 8, "max": 12},
     "macro": {"min": 6, "max": 10}
   },
-  "expected_goal": "Plan activities based on weather and send a summary email",
+  "expected_goal": "Provide a rain-aware activity plan for London, summarize and deliver it via email.",
   "expected_thoughts": {
     "atomic": [
       "Get the current weather for London for the next 3 days",
