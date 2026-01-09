@@ -104,23 +104,37 @@ class IncrementalStrategy(StrategyBase):
             
             # Check if workflow is complete
             if parsed_response.is_complete:
-                break
+                
+                if debug:
+                    print(f"Workflow has been completed in {len(steps)} steps. Returning final workflow object.")
+
+                # Take the last FinalStep generated and extract workflow metadata
+                title = "N/A"
+                description = "N/A"
+                target_objective = user_prompt
+
+                for step in reversed(steps):
+                    if hasattr(step, 'is_final') and step.is_final:
+                        title = step.workflow_title
+                        description = step.workflow_description
+                        target_objective = step.target_objective
+                        break
+                
+                # Sanitize final steps by removing metadata
+                for step in steps:
+                    if hasattr(step, 'is_final') and step.is_final:
+                        del step.workflow_title
+                        del step.workflow_description
+                        del step.target_objective
+
+                return response_model(
+                    title=title,
+                    description=description,
+                    target_objective=target_objective,
+                    steps=steps
+                )
             
             # Prepare next message with sliding window context
             step_counter += generated_steps_count
             workflow_state = self._summarize_steps(steps)
             next_message = f"User Request: {user_prompt} \n\n Current Workflow State:\n{workflow_state}"
-
-        if debug:
-            print(f"\nWorkflow generation complete with {len(steps)} steps")
-            input("Press Enter to continue or Ctrl+C to exit...")
-        
-        # Construct final workflow object
-        workflow = response_model(
-            title="N/A",
-            description="N/A",
-            target_objective=user_prompt,
-            steps=steps
-        )
-        
-        return workflow
