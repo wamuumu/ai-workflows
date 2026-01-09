@@ -19,7 +19,6 @@ if "CEREBRAS_API_KEY" not in os.environ:
 class CerebrasModel(str, Enum):
     GPT_OSS = "gpt-oss-120b"
     LLAMA_3_3 = "llama-3.3-70b"
-    LLAMA_3_1 = "llama3.1-8b"
     QWEN_3 = "qwen-3-32b"
 
 class CerebrasAgent(AgentBase):

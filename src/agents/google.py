@@ -19,7 +19,6 @@ if "GOOGLE_API_KEY" not in os.environ:
 class GeminiModel(str, Enum):
     GEMINI_2_5_FLASH = "gemini-2.5-flash"
     GEMINI_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
-    GEMINI_2_0_FLASH = "gemini-2.0-flash"
 
 class GeminiAgent(AgentBase):
 
