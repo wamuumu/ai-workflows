@@ -1,6 +1,8 @@
 import argparse
 import random
 
+from agents.google import GeminiAgent, GeminiModel
+from agents.cerebras import CerebrasAgent, CerebrasModel
 from features import ChatClarificationFeature, RefinementFeature, ValidationRefinementFeature
 from models.workflows import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
@@ -13,6 +15,44 @@ from utils.workflow import WorkflowUtils
 # ---------------------------------------------------------------------
 # Factories
 # ---------------------------------------------------------------------
+
+# Agent/model mapping
+AGENT_MODELS = {
+    # Cerebras models
+    "cerebras:gpt-oss": (CerebrasAgent, CerebrasModel.GPT_OSS),
+    "cerebras:llama-3.3": (CerebrasAgent, CerebrasModel.LLAMA_3_3),
+    "cerebras:llama-3.1": (CerebrasAgent, CerebrasModel.LLAMA_3_1),
+    "cerebras:qwen-3": (CerebrasAgent, CerebrasModel.QWEN_3),
+    # Gemini models
+    "gemini:2.5-flash": (GeminiAgent, GeminiModel.GEMINI_2_5_FLASH),
+    "gemini:2.5-flash-lite": (GeminiAgent, GeminiModel.GEMINI_2_5_FLASH_LITE),
+    "gemini:2.0-flash": (GeminiAgent, GeminiModel.GEMINI_2_0_FLASH),
+}
+
+AGENT_CHOICES = list(AGENT_MODELS.keys())
+
+def _agents_factory(args):
+    """Build agents dict from CLI args, using defaults for unspecified agents."""
+    agents = {}
+    
+    # Map CLI arg names to agent schema keys
+    agent_args = {
+        "generator": args.generator,
+        "reviewer": args.reviewer,
+        "planner": args.planner,
+        "chatter": args.chatter,
+        "refiner": args.refiner,
+        "executor": args.executor,
+    }
+    
+    for name, spec in agent_args.items():
+        if spec:
+            if spec not in AGENT_MODELS:
+                raise ValueError(f"Unknown agent '{spec}' for '{name}'. Valid: {', '.join(AGENT_CHOICES)}")
+            agent_cls, model = AGENT_MODELS[spec]
+            agents[name] = agent_cls(model)
+    
+    return agents
 
 def _strategy_factory(name: str):
     mapping = {
@@ -97,6 +137,17 @@ def main():
     argparser.add_argument("--no-tools", action="store_true", help="Disable all tools")
 
     # =========================================================
+    # Agent Settings
+    # =========================================================
+    agent_help = f"Agent spec in format 'provider:model'. Choices: {', '.join(AGENT_CHOICES)}"
+    argparser.add_argument("--generator", type=str, metavar="AGENT", help=f"Generator agent. {agent_help}")
+    argparser.add_argument("--reviewer", type=str, metavar="AGENT", help=f"Reviewer agent. {agent_help}")
+    argparser.add_argument("--planner", type=str, metavar="AGENT", help=f"Planner agent. {agent_help}")
+    argparser.add_argument("--chatter", type=str, metavar="AGENT", help=f"Chatter agent. {agent_help}")
+    argparser.add_argument("--refiner", type=str, metavar="AGENT", help=f"Refiner agent. {agent_help}")
+    argparser.add_argument("--executor", type=str, metavar="AGENT", help=f"Executor agent. {agent_help}")
+
+    # =========================================================
     # Execution Settings
     # =========================================================
     argparser.add_argument("--execute", action="store_true", help="Execute the generated or loaded workflow")
@@ -114,6 +165,7 @@ def main():
     response_model_cls = _response_model_factory(args.response_model)
     available_tools = _tools_factory(args)
     selected_features = _features_factory(args)
+    configured_agents = _agents_factory(args)
 
     random_idx = -1
     iterations_idx = []
@@ -129,6 +181,7 @@ def main():
         orchestrator = ConfigurableOrchestrator(
             strategy=strategy_instance,
             available_tools=available_tools,
+            agents=configured_agents,
             features=selected_features
         )
 
