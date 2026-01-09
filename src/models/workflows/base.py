@@ -28,5 +28,9 @@ class BaseStep(BaseModel):
     thoughts: str = Field(..., description="Reasoning for this step's purpose and logic")
 
 class FinalStep(BaseStep):
-    """The final step either of a linear workflow or a branch in a structured workflow."""
+    """The final step either of a linear workflow or a branch in a structured workflow.
+    
+    - Indicates workflow completion.
+    - MUST be the last step in a linear workflow or the terminal step in a structured workflow branch.
+    """
     is_final: bool = True

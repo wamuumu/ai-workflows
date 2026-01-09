@@ -45,6 +45,7 @@ class LLMStep(BaseStep):
             "The prompt to send to the LLM, may include references to prior step outputs. "
             "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
             f"Valid 'output_field' values are: {', '.join(['response'] + ToolRegistry.get_all_output_keys())}"
+            "Allow only unstructured text output from the LLM."
         )
     )
     transitions: List[Transition] = Field(

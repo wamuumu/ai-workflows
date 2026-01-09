@@ -72,10 +72,7 @@ class IncrementalStrategy(StrategyBase):
         system_prompt = PromptUtils.get_system_prompt("incremental_generation")
         system_prompt_with_tools = PromptUtils.inject(system_prompt, ToolRegistry.to_prompt_format(tools=available_tools))
         
-        if response_model.__class__.__name__ == "LinearWorkflow":
-            next_step_response_model = NextLinearStepBatch
-        else:
-            next_step_response_model = NextStructuredStepBatch
+        next_step_response_model = NextLinearStepBatch if response_model.__name__ == "LinearWorkflow" else NextStructuredStepBatch
         
         # Initial message
         next_message = f"""User Request: {user_prompt} \n\n Current Workflow State: Empty (no steps yet)"""
