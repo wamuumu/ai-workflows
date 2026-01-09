@@ -151,6 +151,12 @@ def main():
     argparser.add_argument("--execute", action="store_true", help="Execute the generated or loaded workflow")
     argparser.add_argument("--workflow-path", type=str, help="Path to a saved workflow JSON to load when not generating")
 
+    # =========================================================
+    # Reporting Settings
+    # =========================================================
+    argparser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    argparser.add_argument("--display-formatted-metrics", action="store_true", help="Display formatted metrics at the end of all runs")
+
     args = argparser.parse_args()
 
     # Prepare orchestrator components
@@ -195,11 +201,15 @@ def main():
             print(f"User Prompt (iteration {random_idx}): {user_prompt}\n")
 
             # Generate the workflow
-            workflow = orchestrator.generate(user_prompt=user_prompt, response_model=response_model_cls, debug=False)
+            workflow = orchestrator.generate(
+                user_prompt=user_prompt, 
+                response_model=response_model_cls,
+                debug=args.debug
+            )
 
             # If also executing, run it 
             if args.execute:
-                orchestrator.run(workflow)  
+                orchestrator.run(workflow, debug=args.debug)  
             
         elif args.execute:
             
@@ -220,14 +230,15 @@ def main():
             workflow = WorkflowUtils.load_workflow(str(workflow_path), response_model_cls)
             
             # Execute the workflow
-            orchestrator.run(workflow)
+            orchestrator.run(workflow, debug=args.debug)
         else:
             raise ValueError("At least one of --generate or --execute must be specified.")
 
         # Display metrics
         formatted_metrics.append(MetricUtils.display())
     
-    MetricUtils.display_formatted_metrics(formatted_metrics)
+    if args.display_formatted_metrics:
+        MetricUtils.display_formatted_metrics(formatted_metrics)
 
 if __name__ == "__main__":
     main()
