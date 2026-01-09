@@ -63,14 +63,14 @@ def _strategy_factory(name: str):
         raise ValueError(f"Unknown strategy '{name}'. Valid: {', '.join(mapping.keys())}")
     return cls()
 
-def _response_model_factory(name: str):
+def _workflow_model_factory(name: str):
     mapping = {
         "linear": LinearWorkflow,
         "structured": StructuredWorkflow,
     }
     cls = mapping.get(name.lower())
     if cls is None:
-        raise ValueError(f"Unknown response model '{name}'. Valid: {', '.join(mapping.keys())}")
+        raise ValueError(f"Unknown workflow model '{name}'. Valid: {', '.join(mapping.keys())}")
     return cls
 
 def _tools_factory(args):
@@ -119,10 +119,10 @@ def main():
     argparser.add_argument("--generate", action="store_true", help="Generate a workflow from the given prompt")
     argparser.add_argument("--prompt", type=str, default="weather_activity_plan", help="User prompt name to use")
 
-    # Strategy & response model
+    # Strategy & workflow model
     argparser.add_argument("--strategy", type=str, choices=["monolithic", "incremental", "bottomup"], default="monolithic",
                             help="Which orchestration strategy to use (default: monolithic)")
-    argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
+    argparser.add_argument("--workflow-model", type=str, choices=["linear", "structured"], default="structured",
                             help="Which workflow class to use for generation / loading (default: structured)")
 
     # Features (flags)
@@ -161,7 +161,7 @@ def main():
 
     # Prepare orchestrator components
     strategy_instance = _strategy_factory(args.strategy)
-    response_model_cls = _response_model_factory(args.response_model)
+    workflow_model_cls = _workflow_model_factory(args.workflow_model)
     available_tools = _tools_factory(args)
     selected_features = _features_factory(args)
     configured_agents = _agents_factory(args)
@@ -203,7 +203,7 @@ def main():
             # Generate the workflow
             workflow = orchestrator.generate(
                 user_prompt=user_prompt, 
-                response_model=response_model_cls,
+                response_model=workflow_model_cls,
                 debug=args.debug
             )
 
@@ -227,7 +227,7 @@ def main():
             print(f"Workflow: {workflow_path}\n")
                 
             # Load the workflow
-            workflow = WorkflowUtils.load_workflow(str(workflow_path), response_model_cls)
+            workflow = WorkflowUtils.load_workflow(str(workflow_path), workflow_model_cls)
             
             # Execute the workflow
             orchestrator.run(workflow, debug=args.debug)

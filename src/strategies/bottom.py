@@ -150,7 +150,7 @@ class BottomUpStrategy(StrategyBase):
                 assembly_context += f"  Branches: {', '.join(decision.branches)}\n"
 
         if control_flow.llm_calls_needed:
-            assembly_context += f"\n## LLM Reasoning Required At: {', '.join(control_flow.llm_calls_needed)}\n"
+            assembly_context += f"\n## LLM Reasoning Required At: {', '.join(map(str, control_flow.llm_calls_needed))}\n"
 
         assembly_context += """
         ## Assembly Instructions
