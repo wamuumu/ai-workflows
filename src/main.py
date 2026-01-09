@@ -151,11 +151,6 @@ def main():
     argparser.add_argument("--execute", action="store_true", help="Execute the generated or loaded workflow")
     argparser.add_argument("--workflow-path", type=str, help="Path to a saved workflow JSON to load when not generating")
 
-    # =========================================================
-    # Reporting Settings
-    # =========================================================
-    argparser.add_argument("--display-metrics", action="store_true", help="Display metrics after each run")
-
     args = argparser.parse_args()
 
     # Prepare orchestrator components
@@ -229,12 +224,10 @@ def main():
         else:
             raise ValueError("At least one of --generate or --execute must be specified.")
 
-        # Display metrics (if requested)
-        if args.display_metrics:
-            formatted_metrics.append(MetricUtils.display())
+        # Display metrics
+        formatted_metrics.append(MetricUtils.display())
     
-    if args.display_metrics:
-        MetricUtils.display_formatted_metrics(formatted_metrics)
+    MetricUtils.display_formatted_metrics(formatted_metrics)
 
 if __name__ == "__main__":
     main()

@@ -147,6 +147,7 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 | `--no-tools` | Disable all tools |
 | `--prompt` | Prompt name (default: `weather_activity_plan`) |
 | `--runs` | Number of runs (default: 1) |
+| `--it` | Pick a random iteration for prompt (generate) or workflow (execute) |
 
 #### evaluate.py
 
@@ -194,7 +195,11 @@ The framework provides three evaluation metrics:
 2. **Execution Similarity:** Measures similarity between workflow execution traces
 3. **Correctness Scores:** Validates workflows against reference constraints (required steps, tool usage, dependencies)
 
-Results are saved to the `metrics/` directory with timestamps and detailed breakdowns.
+Results are saved at runtime to the `metrics/` directory with timestamps and detailed breakdowns.
+
+To see all the evaluation done so far, check the following google sheet:
+
+[![google-sheet-logo]](https://docs.google.com/spreadsheets/d/1NI1UVD8nQ_wCcqrUvtZBqOlGUgmrKu4HsEMqdm3orDs/edit?usp=sharing)
 
 ---
 
@@ -210,3 +215,4 @@ Results are saved to the `metrics/` directory with timestamps and detailed break
 <!-- LOGOs -->
 [python-logo]: https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python
 [license-logo]: https://img.shields.io/badge/License-MIT-green?style=for-the-badge
+[google-sheet-logo]: https://img.shields.io/badge/AI_Workflows_Metrics-34A853?style=for-the-badge&logo=google-sheets&logoColor=white
