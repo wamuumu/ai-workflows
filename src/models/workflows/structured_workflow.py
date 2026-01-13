@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Union, Literal
 
-from models.workflows.base import ToolParameter, BaseStep, FinalStep
+from models.workflows.base import Metadata, ToolParameter, BaseStep, FinalStep
 from tools.registry import ToolRegistry
 
 class Transition(BaseModel):
@@ -58,4 +58,5 @@ class StructuredWorkflow(BaseModel):
     title: str = Field(..., description="Title of the structured workflow")
     description: str = Field(..., description="Description of the structured workflow")
     target_objective: str = Field(..., description="The intended objective based on the user prompt")
+    metadata: Metadata = Field(..., description="Metadata for the structured workflow")
     steps: List[Union[ToolStep, LLMStep, FinalStep]] = Field(..., description="List of steps in the structured workflow")

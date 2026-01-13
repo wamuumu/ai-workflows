@@ -13,6 +13,7 @@ class LoggerUtils:
         name: str = "AIWorkflowLogger",
         level: int = logging.INFO,
         log_dir: str = LOG_DIR,
+        prefix: str = "run",
         log_to_console: bool = False
     ):
         # Ensure log directory exists
@@ -37,7 +38,7 @@ class LoggerUtils:
 
             # File handler
             log_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-            log_file = f"run_{log_id}.log"
+            log_file = f"{prefix}_{log_id}.log"
             file_handler = logging.FileHandler(Path(log_dir) / log_file)
             file_handler.setLevel(level)
             file_handler.setFormatter(formatter)

@@ -1,10 +1,11 @@
 import os
+import re
 import json
 import numpy as np
 import logging
 import torch
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional, Union
 from pydantic import BaseModel, Field
 from collections import Counter
 from sentence_transformers import SentenceTransformer
@@ -29,6 +30,7 @@ class MetricUtils:
     _metrics: MetricSchema = MetricSchema()
     _has_finished: bool = False
     _logger = LoggerUtils(name="MetricLogger", log_dir=LOG_DIR, log_to_console=True)
+    _formatted_logger = LoggerUtils(name="FormattedMetricLogger", log_dir=LOG_DIR, prefix="formatted")
     _embeddings: Dict[str, np.ndarray] = {}
     _similarities: Dict[Tuple, float] = {}
     _embedding_model: SentenceTransformer = None
@@ -106,11 +108,15 @@ class MetricUtils:
         n = len(workflows)
         matrix = np.zeros((n, n))
 
+        formatted_txt = ""
         for i in range(n):
             for j in range(i, n):
                 total_score = cls._workflow_similarity(workflows[i], workflows[j])
                 matrix[i, j] = total_score
                 matrix[j, i] = total_score  # symmetric
+        
+        for line in matrix:
+            formatted_txt += "".join([f"{score:.3f}, " for score in line])[:-2] + "\n"
 
         cls._print_similarity_matrix(matrix, title="Workflow Similarity Matrix")
 
@@ -126,6 +132,9 @@ class MetricUtils:
         avg_scores = np.mean(matrix, axis=1)
         best_index = int(np.argmax(avg_scores))
         cls._logger.log(logging.INFO, f"Workflow W{best_index + 1} has the highest average similarity of {avg_scores[best_index]:.3f}\n")
+
+        cls._formatted_logger.log(logging.INFO, f"    Formatted data similarity scores:")
+        cls._formatted_logger.log(logging.INFO, "\n" + formatted_txt)
 
     @classmethod
     def _workflow_similarity(cls, a: BaseModel, b: BaseModel) -> float:
@@ -347,15 +356,15 @@ class MetricUtils:
             else:
                 transition_score = 0.0
             
-            reference_goal = reference_data.get("expected_goal", "")
-            goal_score = cls._string_embedding_score(workflow.target_objective, reference_goal)
+            # reference_goal = reference_data.get("expected_goal", "")
+            # goal_score = cls._string_embedding_score(workflow.target_objective, reference_goal)
             
-            reference_thoughts = "\n".join(reference_data.get("expected_thoughts", {}).get(mode, []))
-            workflow_thoughts = "\n".join(
-                step.thoughts for step in workflow.steps 
-                if not getattr(step, 'is_final', False)
-            )
-            thoughts_score = cls._string_embedding_score(workflow_thoughts, reference_thoughts)
+            # reference_thoughts = "\n".join(reference_data.get("expected_thoughts", {}).get(mode, []))
+            # workflow_thoughts = "\n".join(
+            #     step.thoughts for step in workflow.steps 
+            #     if not getattr(step, 'is_final', False)
+            # )
+            # thoughts_score = cls._string_embedding_score(workflow_thoughts, reference_thoughts)
 
             # Overall correctness score
             weighted_scores = {
@@ -382,8 +391,8 @@ class MetricUtils:
                 "llm_score": llm_score,
                 "step_score": step_score,
                 "transition_score": transition_score,
-                "goal_score": goal_score,
-                "thoughts_score": thoughts_score
+                # "goal_score": goal_score,
+                # "thoughts_score": thoughts_score
             })
 
         # Print summary for all workflows
@@ -397,28 +406,29 @@ class MetricUtils:
             cls._logger.log(logging.INFO, f"    LLM call score: {result['llm_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Total step score: {result['step_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Branch transition score: {result['transition_score']:.3f}")
-            cls._logger.log(logging.INFO, f"    Goal similarity score: {result['goal_score']:.3f}")
-            cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}\n")
-        temp_texts = ["","","","","","",""]
-        cls._logger.log(logging.INFO, f"    Formatted data:")
+            # cls._logger.log(logging.INFO, f"    Goal similarity score: {result['goal_score']:.3f}")
+            # cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}\n")
+        temp_texts = ["","","","",""]
+        cls._formatted_logger.log(logging.INFO, f"    Formatted data correctness scores:")
         for result in results:
             temp_texts[0]+=(f"{np.mean(result['tool_scores']):.3f}, ")
             temp_texts[1]+=(f"{result['llm_score']:.3f}, ")
             temp_texts[2]+=(f"{result['step_score']:.3f}, ")
             temp_texts[3]+=(f"{result['transition_score']:.3f}, ")
             temp_texts[4]+=(f"{result['overall_weighted_score']:.3f}, ")
-            temp_texts[5]+=(f"{result['goal_score']:.3f}, ")
-            temp_texts[6]+=(f"{result['thoughts_score']:.3f}, ")
+        
+        temp_text=""
         for line in temp_texts:
-            cls._logger.log(logging.INFO, "" + "".join(line)[:-2])
+            temp_text+=("  "+ "".join(line)[:-2] + "\n")    
+        cls._formatted_logger.log(logging.INFO, "\n"+temp_text)
         
         # cls._logger.log aggregate statistics
         overall_scores = [r['overall_score'] for r in results]
         cls._logger.log(logging.INFO, f"  Average correctness score: {np.mean(overall_scores):.3f}")
         cls._logger.log(logging.INFO, f"  Min correctness score: {np.min(overall_scores):.3f}")
         cls._logger.log(logging.INFO, f"  Max correctness score: {np.max(overall_scores):.3f}")
-        cls._logger.log(logging.INFO, f"  Average goal similarity score: {np.mean([r['goal_score'] for r in results]):.3f}")
-        cls._logger.log(logging.INFO, f"  Average thoughts similarity score: {np.mean([r['thoughts_score'] for r in results]):.3f}")
+        # cls._logger.log(logging.INFO, f"  Average goal similarity score: {np.mean([r['goal_score'] for r in results]):.3f}")
+        # cls._logger.log(logging.INFO, f"  Average thoughts similarity score: {np.mean([r['thoughts_score'] for r in results]):.3f}\n")
     
     @classmethod
     def _detect_mode(cls, tool_counter: Counter, expected_tool_calls: Dict[str, Any]) -> str:
@@ -767,3 +777,351 @@ class MetricUtils:
         cls._embeddings.clear()
         cls._similarities.clear()
         cls._has_finished = False
+
+    # ============================================================================ #
+    # 5. Reasoning Coherence Score
+    # Measures logical structure and consistency of reasoning chain
+    # ============================================================================ #
+
+    @classmethod
+    def reasoning_coherence_scores(cls, workflows: List[BaseModel]) -> None:
+
+        results = []
+        cls._logger.log(logging.INFO, "Reasoning Coherence Scores:")
+        for idx, workflow in enumerate(workflows):
+            
+            steps = [s for s in workflow.steps if not getattr(s, 'is_final', False)]
+            
+            if len(steps) == 0:
+                return {"coherence_score": 0.0, "details": "No non-final steps"}
+            
+            # 1. Thought chain continuity
+            thought_continuity = cls._analyze_thought_continuity(steps)
+            
+            # 2. Transition validity
+            transition_validity = cls._analyze_transition_validity(steps)
+            
+            # 3. Structural coherence (detect cycles, unreachable steps)
+            structural_coherence = cls._analyze_structural_coherence(workflow.steps)
+            
+            # 4. Action-thought alignment (does the action match what the thought says?)
+            action_alignment = cls._analyze_action_thought_alignment(steps)
+            
+            # Weighted overall score
+            weights = {
+                "thought_continuity": 0.30,
+                "transition_validity": 0.25,
+                "structural_coherence": 0.25,
+                "action_alignment": 0.20
+            }
+            
+            overall = (
+                thought_continuity * weights["thought_continuity"] +
+                transition_validity * weights["transition_validity"] +
+                structural_coherence * weights["structural_coherence"] +
+                action_alignment * weights["action_alignment"]
+            )
+
+            results.append(overall)
+            
+            cls._logger.log(logging.INFO, f"Worflow W{idx + 1}:")
+            cls._logger.log(logging.INFO, f"  Overall coherence score: {overall:.3f}")
+            cls._logger.log(logging.INFO, f"  Thought continuity: {thought_continuity:.3f}")
+            cls._logger.log(logging.INFO, f"  Transition validity: {transition_validity:.3f}")
+            cls._logger.log(logging.INFO, f"  Structural coherence: {structural_coherence:.3f}")
+            cls._logger.log(logging.INFO, f"  Action-thought alignment: {action_alignment:.3f}\n")
+        
+        cls._formatted_logger.log(logging.INFO, f"    Formatted data reasoning coherence scores:")
+        cls._formatted_logger.log(logging.INFO, "\n" + "".join([f"{r:.3f}, " for r in results])[:-2] + "\n")
+
+    @classmethod
+    def _analyze_thought_continuity(cls, steps: List[BaseModel]) -> float:
+        """Check if consecutive thoughts logically follow each other."""
+        if len(steps) < 2:
+            return 1.0
+        
+        continuity_scores = []
+        for i in range(len(steps) - 1):
+            thought_a = getattr(steps[i], 'thoughts', '') or ''
+            thought_b = getattr(steps[i + 1], 'thoughts', '') or ''
+            
+            if not thought_a or not thought_b:
+                continuity_scores.append(0.5)  # Neutral if thoughts missing
+                continue
+            
+            # Semantic similarity between consecutive thoughts
+            sim = cls._string_embedding_score(thought_a, thought_b)
+            
+            # Also check for logical progression keywords
+            progression_bonus = 0.0
+            progression_patterns = [
+                (r'\b(then|next|after|following|subsequently)\b', 0.1),
+                (r'\b(result|output|using|with the)\b', 0.1),
+                (r'\b(based on|from the|given the)\b', 0.1),
+            ]
+            for pattern, bonus in progression_patterns:
+                if re.search(pattern, thought_b.lower()):
+                    progression_bonus += bonus
+            
+            score = min(1.0, sim * 0.7 + 0.3 + progression_bonus)
+            continuity_scores.append(score)
+        
+        return float(np.mean(continuity_scores)) if continuity_scores else 1.0
+
+    @classmethod
+    def _analyze_transition_validity(cls, steps: List[BaseModel]) -> float:
+        """Check if transitions are justified by step capabilities."""
+        transition_scores = []
+        
+        for step in steps:
+            transitions = getattr(step, 'transitions', []) or []
+            if not transitions:
+                continue
+            
+            step_thought = getattr(step, 'thoughts', '') or ''
+            step_action = getattr(step, 'action', '') or ''
+            
+            for t in transitions:
+                condition = getattr(t, 'condition', '') or ''
+                
+                # Check if condition is meaningful
+                if condition.lower() in ['always', 'default', 'success', 'true', '']:
+                    transition_scores.append(0.8)  # Simple transitions are okay
+                    continue
+                
+                # Check if condition relates to step content
+                condition_relevance = 0.0
+                
+                # For LLM steps, conditions should relate to the prompt/decision
+                if step_action == 'call_llm':
+                    prompt = getattr(step, 'prompt', '') or ''
+                    condition_relevance = cls._string_embedding_score(condition, prompt)
+                
+                # For tool steps, conditions should relate to tool output
+                elif step_action == 'call_tool':
+                    tool_name = getattr(step, 'tool_name', '') or ''
+                    # Basic check: condition mentions tool-related concepts
+                    if tool_name.lower() in condition.lower():
+                        condition_relevance = 0.7
+                    else:
+                        condition_relevance = cls._string_embedding_score(condition, step_thought)
+                
+                transition_scores.append(max(0.5, condition_relevance))
+        
+        return float(np.mean(transition_scores)) if transition_scores else 1.0
+
+    @classmethod
+    def _analyze_structural_coherence(cls, steps: List[BaseModel]) -> float:
+        """Detect structural issues: cycles, unreachable steps, dead ends."""
+        if not steps:
+            return 0.0
+        
+        step_ids = {s.id for s in steps}
+        final_step_ids = {s.id for s in steps if getattr(s, 'is_final', False)}
+        
+        # Build adjacency from transitions
+        graph = {s.id: [] for s in steps}
+        for step in steps:
+            transitions = getattr(step, 'transitions', []) or []
+            for t in transitions:
+                next_id = getattr(t, 'next_step', None)
+                if next_id is not None:
+                    graph[step.id].append(next_id)
+        
+        issues = 0
+        total_checks = 0
+        
+        # Check 1: All transition targets exist
+        for step_id, targets in graph.items():
+            for target in targets:
+                total_checks += 1
+                if target not in step_ids:
+                    issues += 1
+        
+        # Check 2: Reachability from step 1 (if exists)
+        if 1 in step_ids:
+            reachable = cls._find_reachable(graph, 1)
+            for step_id in step_ids:
+                if step_id != 1:
+                    total_checks += 1
+                    if step_id not in reachable:
+                        issues += 0.5  # Unreachable is a partial issue
+        
+        # Check 3: Dead ends (non-final steps with no transitions)
+        for step in steps:
+            if getattr(step, 'is_final', False):
+                continue
+            transitions = getattr(step, 'transitions', []) or []
+            total_checks += 1
+            if not transitions:
+                issues += 0.5  # Dead end is a partial issue
+        
+        # Check 4: Path to final exists
+        if final_step_ids and 1 in step_ids:
+            can_reach_final = any(
+                fid in cls._find_reachable(graph, 1) 
+                for fid in final_step_ids
+            )
+            total_checks += 1
+            if not can_reach_final:
+                issues += 1
+        
+        if total_checks == 0:
+            return 1.0
+        
+        return max(0.0, 1.0 - (issues / total_checks))
+
+    @classmethod
+    def _find_reachable(cls, graph: Dict[int, List[int]], start: int) -> set:
+        """BFS to find all reachable nodes from start."""
+        visited = set()
+        queue = [start]
+        while queue:
+            node = queue.pop(0)
+            if node in visited:
+                continue
+            visited.add(node)
+            for neighbor in graph.get(node, []):
+                if neighbor not in visited:
+                    queue.append(neighbor)
+        return visited
+
+    @classmethod
+    def _analyze_action_thought_alignment(cls, steps: List[BaseModel]) -> float:
+        """Check if the action matches what the thought describes."""
+        alignment_scores = []
+        
+        for step in steps:
+            thought = getattr(step, 'thoughts', '') or ''
+            action = getattr(step, 'action', '') or ''
+            
+            if not thought:
+                alignment_scores.append(0.5)
+                continue
+            
+            thought_lower = thought.lower()
+            
+            if action == 'call_tool':
+                tool_name = getattr(step, 'tool_name', '') or ''
+                # Check if thought mentions the tool or its purpose
+                tool_words = tool_name.replace('_', ' ').lower().split()
+                mention_score = sum(1 for w in tool_words if w in thought_lower) / max(len(tool_words), 1)
+                
+                # Also check for action-related keywords
+                action_keywords = ['call', 'use', 'invoke', 'get', 'fetch', 'compute', 'analyze', 'send']
+                has_action_word = any(kw in thought_lower for kw in action_keywords)
+                
+                score = mention_score * 0.6 + (0.4 if has_action_word else 0.2)
+                alignment_scores.append(min(1.0, score))
+                
+            elif action == 'call_llm':
+                # Check if thought mentions reasoning/decision/analysis
+                llm_keywords = ['decide', 'determine', 'analyze', 'reason', 'evaluate', 'consider', 'check', 'verify']
+                has_llm_word = any(kw in thought_lower for kw in llm_keywords)
+                alignment_scores.append(0.8 if has_llm_word else 0.5)
+            else:
+                alignment_scores.append(0.5)
+        
+        return float(np.mean(alignment_scores)) if alignment_scores else 1.0
+
+    # ============================================================================ #
+    # 6. Intent Resolution Score
+    # Measures how well agent interprets underlying goal vs literal prompt
+    # ============================================================================ #
+
+    @classmethod
+    def intent_resolution_scores(cls, workflows: List[BaseModel]) -> None:
+
+        results = []
+        cls._logger.log(logging.INFO, "Intent Resolution Scores:")
+        for idx, workflow in enumerate(workflows):
+            
+            prompt = workflow.metadata.original_prompt or ""
+
+            # 1. Goal alignment (explicit)
+            goal = getattr(workflow, 'target_objective', '') or ''
+            explicit_alignment = cls._string_embedding_score(goal, prompt)
+            
+            # 2. Over-interpretation penalty (adding things not in prompt)
+            over_interpretation = cls._analyze_over_interpretation(prompt, workflow)
+            
+            # Overall intent resolution
+            weights = {
+                "explicit_alignment": 0.75,
+                "precision": 0.25  # 1 - over_interpretation
+            }
+            
+            overall = (
+                explicit_alignment * weights["explicit_alignment"] +
+                (1.0 - over_interpretation) * weights["precision"]
+            )
+
+            results.append(overall)
+            
+            cls._logger.log(logging.INFO, f"Worflow W{idx + 1}:")
+            cls._logger.log(logging.INFO, f"  Overall intent resolution: {overall:.3f}")
+            cls._logger.log(logging.INFO, f"  Explicit goal alignment: {explicit_alignment:.3f}")
+            cls._logger.log(logging.INFO, f"  Over-interpretation penalty: {over_interpretation:.3f}\n") 
+
+        cls._formatted_logger.log(logging.INFO, f"    Formatted data intent resolution scores:")
+        cls._formatted_logger.log(logging.INFO, "\n"+"".join([f"{r:.3f}, " for r in results])[:-2] + "\n")
+
+    @classmethod
+    def _workflow_to_text(cls, workflow: BaseModel) -> str:
+        """Convert workflow to text representation for semantic comparison."""
+        parts = [
+            workflow.title if hasattr(workflow, 'title') else '',
+            workflow.description if hasattr(workflow, 'description') else '',
+            workflow.target_objective if hasattr(workflow, 'target_objective') else ''
+        ]
+        
+        for step in workflow.steps:
+            if getattr(step, 'is_final', False):
+                continue
+            parts.append(getattr(step, 'thoughts', '') or '')
+            if hasattr(step, 'tool_name'):
+                parts.append(step.tool_name.replace('_', ' '))
+            if hasattr(step, 'prompt'):
+                parts.append(step.prompt)
+        
+        return ' '.join(p for p in parts if p)
+
+    @classmethod
+    def _analyze_over_interpretation(cls, prompt: str, workflow: BaseModel) -> float:
+        """
+        Detect if workflow adds significant content not implied by prompt.
+        Returns penalty score (0 = no over-interpretation, 1 = severe).
+        """
+        workflow_text = cls._workflow_to_text(workflow)
+        
+        # Check if workflow text diverges significantly from prompt
+        base_similarity = cls._string_embedding_score(prompt, workflow_text)
+        
+        # Count tools/steps that don't seem related to prompt
+        unrelated_steps = 0
+        total_steps = 0
+        
+        for step in workflow.steps:
+            if getattr(step, 'is_final', False):
+                continue
+            total_steps += 1
+            
+            step_text = getattr(step, 'thoughts', '') or ''
+            if hasattr(step, 'tool_name'):
+                step_text += ' ' + step.tool_name.replace('_', ' ')
+            
+            if step_text:
+                step_relevance = cls._string_embedding_score(step_text, prompt)
+                if step_relevance < 0.3:  # Low relevance threshold
+                    unrelated_steps += 1
+        
+        if total_steps == 0:
+            return 0.0
+        
+        unrelated_ratio = unrelated_steps / total_steps
+        
+        # Combine with overall divergence
+        divergence = 1.0 - base_similarity
+        
+        # Over-interpretation is high divergence + unrelated steps
+        return min(1.0, (divergence * 0.3 + unrelated_ratio * 0.7))

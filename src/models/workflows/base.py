@@ -3,6 +3,10 @@ from typing import Union
 
 from tools.registry import ToolRegistry
 
+class Metadata(BaseModel):
+    """Metadata for a workflow step."""
+    original_prompt: str = Field(..., description="The original user prompt that initiated the workflow")
+
 class ToolParameter(BaseModel):
     """Parameter for a tool call."""
     key: str = Field(..., description="Parameter key matching selected tool input schema", json_schema_extra={"enum": ToolRegistry.get_all_input_keys()})
@@ -25,7 +29,14 @@ class BaseStep(BaseModel):
             "Do not repeat IDs across steps."
         )
     )
-    thoughts: str = Field(..., description="Reasoning for this step's purpose and logic")
+    thoughts: str = Field(
+        ..., 
+        description=(
+            "Extensive reasoning about the step's purpose and approach. "
+            "This should include the rationale for tool selection and parameter choices. "
+            "Be as detailed as possible to ensure clarity in the workflow's logic."
+        )
+    )
 
 class FinalStep(BaseStep):
     """The final step either of a linear workflow or a branch in a structured workflow.

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Union, Literal
 
-from models.workflows.base import ToolParameter, BaseStep, FinalStep
+from models.workflows.base import Metadata, ToolParameter, BaseStep, FinalStep
 from tools.registry import ToolRegistry
 
 class ToolStep(BaseStep):
@@ -35,4 +35,5 @@ class LinearWorkflow(BaseModel):
     title: str = Field(..., description="Title of the linear workflow")
     description: str = Field(..., description="Description of the linear workflow")
     target_objective: str = Field(..., description="The intended objective based on the user prompt")
+    metadata: Metadata = Field(..., description="Metadata for the linear workflow")
     steps: List[Union[ToolStep, LLMStep, FinalStep]] = Field(..., description="List of steps in the linear workflow")
