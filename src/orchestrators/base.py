@@ -36,8 +36,8 @@ def working_directory(path):
 class AgentSchema(BaseModel):
     generator: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
     reviewer: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
-    planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
-    chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.LLAMA_3_3))
+    planner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
+    chatter: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
     refiner: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
     executor: Optional[AgentBase] = Field(default_factory=lambda: CerebrasAgent(CerebrasModel.GPT_OSS))
 

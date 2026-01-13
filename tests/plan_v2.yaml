@@ -1,87 +1,218 @@
+# =============================================================================
+# AI Workflow Architecture - Test Plan v2
+# =============================================================================
+#
+# Toolset Definitions:
+#   - atomic:   Only fine-grained tools (get_weather, get_stock_price, etc.)
+#   - macro:    Only composite tools (plan_trip, analyze_stock_with_news, etc.)
+#   - standard: Both atomic and macro tools available
+#
+# Metrics Evaluated:
+#   - Task Completion:     Does the workflow accomplish the intended goal?
+#   - Intent Resolution:   How well does it capture user's underlying intent?
+#   - Reasoning Coherence: Logical consistency of the reasoning chain
+#   - Consistency:         Reproducibility across repeated runs
+#   - Efficiency:          Time, LLM calls, and token usage
+#
+# =============================================================================
+
 tests:
   # ---------------------------------------------------------
   # GROUP 1: BASELINE
-  # Goal: Establish baseline performances 
+  # Goal: Establish baseline performance for monolithic architecture
+  # Control: Same architecture, vary only workflow model
   # ---------------------------------------------------------
-  - id: "T1_BASE_MONO"
+  - id: "T1_BASE_LINEAR"
     architecture: "monolithic"
     features: []
     toolset: "standard"
     workflow: "linear"
-    hypothesis: "Monolithic linear approach should be enough to handle basic workflow generation"
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Monolithic + linear workflow provides the simplest baseline.
+      Expected: High efficiency (single LLM call), but lower task completion
+      on prompts requiring conditional branching since linear workflows
+      cannot express decision points.
 
-  - id: "T2_BASE_MONO"
+  - id: "T2_BASE_STRUCTURED"
     architecture: "monolithic"
     features: []
     toolset: "standard"
     workflow: "structured"
-    hypothesis: "Monolithic structured approach should outperform linear in handling branching logic"
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Monolithic + structured workflow should improve task completion over
+      linear by enabling branching logic. Expected: Similar efficiency to T1,
+      but higher scores on reasoning coherence and task completion for
+      complex prompts.
 
   # ---------------------------------------------------------
   # GROUP 2: ARCHITECTURE COMPARISON
-  # Goal: Prove that advanced architectures outperform baseline Monolithic.
+  # Goal: Compare generation strategies with controlled variables
+  # Control: All use structured workflow, standard toolset, no features
   # ---------------------------------------------------------
-
   - id: "T3_ARCH_INCREMENTAL"
     architecture: "incremental"
     features: []
     toolset: "standard"
     workflow: "structured"
-    hypothesis: "Incremental architecture should outperform monolithic due to its stepwise validation and error correction, at the cost of worse efficiency."
-  
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Incremental architecture builds workflows step-by-step with context
+      from previous steps. Expected: Higher reasoning coherence than
+      monolithic due to iterative validation, but worse efficiency
+      (more LLM calls). Risk: Early errors may propagate through the chain.
+
   - id: "T4_ARCH_BOTTOM_UP"
     architecture: "bottom-up"
     features: []
     toolset: "standard"
     workflow: "structured"
-    hypothesis: "Bottom-up architecture should outperform incremental due to its reduced error propagation, hallucination containment, and better handling of complex branching logic."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Bottom-up architecture separates tool identification, ordering, and
+      control flow into distinct phases. Expected: Best task completion and
+      reasoning coherence due to structured decomposition. Lower error
+      propagation than incremental since phases are independent. Trade-off:
+      Moderate efficiency (multiple phases but focused prompts).
 
   # ---------------------------------------------------------
-  # GROUP 3: TESTING ORTHOGONALITY
-  # Goal: Prove that features improve any architecture.
+  # GROUP 3: FEATURE ORTHOGONALITY
+  # Goal: Prove that features improve metrics independently of architecture
+  # Control: All use monolithic + structured as base (weakest architecture)
   # ---------------------------------------------------------
   - id: "T5_FEAT_REFINEMENT"
     architecture: "monolithic"
     features: ["validation_refinement"]
     toolset: "standard"
     workflow: "structured"
-    hypothesis: "Iterative refinement will improve 'Executability' and 'Connection Logic' metrics across architectures by catching and correcting errors."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Validation refinement adds an iterative review loop after generation.
+      Expected: Improved task completion and reasoning coherence compared
+      to T2 (same config without feature) by catching structural errors
+      and invalid tool usage. Trade-off: Reduced efficiency due to
+      additional LLM calls for review iterations.
 
   - id: "T6_FEAT_CHAT"
     architecture: "monolithic"
     features: ["chat_clarification"]
     toolset: "standard"
     workflow: "structured"
-    hypothesis: "Chat-based user clarification will improve 'User Intent' satisfaction by ensuring the generated workflow aligns better with user needs."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Chat clarification queries the user before generation to resolve
+      ambiguities. Expected: Higher intent resolution scores compared to T2
+      since unclear requirements are addressed upfront. Trade-off: Requires
+      user interaction, slightly reduced efficiency.
+
+  - id: "T7_FEAT_COMBINED"
+    architecture: "monolithic"
+    features: ["chat_clarification", "validation_refinement"]
+    toolset: "standard"
+    workflow: "structured"
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Combining both features should yield additive improvements: better
+      intent resolution (from clarification) AND better task completion
+      (from refinement). Expected: Highest quality among monolithic tests,
+      but lowest efficiency due to both feature costs.
 
   # ---------------------------------------------------------
-  # GROUP 4: ENVIRONMENTAL VARIABLES
-  # Goal: Test impact of toolset size and granularity (atomic vs standard).
+  # GROUP 4: TOOLSET GRANULARITY
+  # Goal: Test how tool abstraction level affects planning quality
+  # Control: All use bottom-up + structured (best architecture for isolation)
   # ---------------------------------------------------------
-  - id: "T7_ENV_ATOMIC"
+  - id: "T8_ENV_ATOMIC"
     architecture: "bottom-up"
     features: []
     toolset: "atomic"
     workflow: "structured"
-    hypothesis: "Using atomic tools should make workflows easier to validate and to understand, even if planning becomes more complex and more prone to errors."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Atomic-only toolset forces fine-grained planning. Expected: Workflows
+      are more detailed and explicit, improving reasoning coherence (each
+      step is transparent). Trade-off: More steps required, higher chance
+      of parameter passing errors between steps, potentially lower task
+      completion on complex tasks.
 
-  - id: "T8_ENV_MACRO"
+  - id: "T9_ENV_MACRO"
     architecture: "bottom-up"
     features: []
     toolset: "macro"
     workflow: "structured"
-    hypothesis: "Using macro tools should simplify planning and improve 'Connection Logic', but may reduce 'Executability' due to less granular control."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Macro-only toolset provides pre-composed operations. Expected: Simpler
+      workflows with fewer steps, improving efficiency and reducing inter-step
+      errors. Task completion should be HIGH for tasks matching macro tool
+      capabilities, but LOW for tasks requiring operations not covered by
+      available macros.
 
-  - id: "T9_ENV_LIMITED"
+  - id: "T10_ENV_STANDARD"
     architecture: "bottom-up"
     features: []
-    toolset: "limited (missing core tools)"
+    toolset: "standard"
     workflow: "structured"
-    hypothesis: "Using a limited toolset should challenge the model's ability to creatively combine tools, potentially reducing 'Executability' but testing adaptability."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Standard toolset (atomic + macro) tests tool selection judgment.
+      Expected: Best task completion since the model can choose optimal
+      abstraction level. Risk: May inconsistently mix granularities,
+      potentially hurting consistency scores across runs.
 
-  - id: "T10_ENV_OVERLAPPING"
-    architecture: "bottom-up"
-    features: []
-    toolset: "overlapping (redundant tools)"
+  # ---------------------------------------------------------
+  # GROUP 5: CROSS-ARCHITECTURE FEATURE VALIDATION
+  # Goal: Confirm features help non-monolithic architectures too
+  # ---------------------------------------------------------
+  - id: "T11_INCR_REFINED"
+    architecture: "incremental"
+    features: ["validation_refinement"]
+    toolset: "standard"
     workflow: "structured"
-    hypothesis: "Using overlapping tools should test the model's ability to choose the most appropriate tool, potentially improving 'Connection Logic' but risking confusion and errors."
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Refinement on incremental should provide smaller gains than on
+      monolithic (T5) since incremental already has step-by-step validation.
+      Expected: Marginal improvement in task completion, diminishing returns
+      on efficiency cost.
+
+  - id: "T12_BOTTOM_REFINED"
+    architecture: "bottom-up"
+    features: ["validation_refinement"]
+    toolset: "standard"
+    workflow: "structured"
+    llm_model: "gpt-oss"
+    hypothesis: >
+      Refinement on bottom-up should catch errors in control flow generation
+      (the final phase). Expected: Moderate improvement in reasoning coherence
+      since the review can fix transition logic issues.
+
+  # ---------------------------------------------------------
+  # GROUP 6: DISTINCT LLM MODELS
+  # Goal: Test if architecture advantages can be generalized across LLMs
+  # ---------------------------------------------------------
+
+  - id: "T13_LLMMODEL_VARIATION"
+    architecture: "incremental"
+    features: []
+    toolset: "standard"
+    workflow: "structured"
+    llm_model: "gemini-2.5-flash"
+    hypothesis: >
+      Testing incremental architecture on a different LLM model to
+      validate if performance improvements are consistent. Expected:
+      Comparable improvements in metrics as seen with other models,
+      demonstrating robustness of the architecture choice.
+  
+  - id: "T14_LLMMODEL_VARIATION_2"
+    architecture: "incremental"
+    features: []
+    toolset: "standard"
+    workflow: "structured"
+    llm_model: "llama-3.3"
+    hypothesis: >
+      Testing incremental architecture on another different LLM model to
+      further validate consistency of performance improvements. Expected:
+      Similar trends in metric improvements, confirming that the benefits
+      of the incremental approach are not model-specific.

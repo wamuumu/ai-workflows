@@ -6,7 +6,7 @@
       "get_outdoor_activities": {"min": 1, "max": 1}
     },
     "macro": {
-      "check_weather_and_plan_activities": {"min": 1, "max": 1}
+      "plan_trip": {"min": 1, "max": 1}
     },
     "common": {
       "write_file": {"min": 1, "max": 2},
