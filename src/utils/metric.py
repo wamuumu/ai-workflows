@@ -766,9 +766,9 @@ class MetricUtils:
     def display_formatted_metrics(cls, metrics: List[List[str]]) -> None:
         headers = ["Generation", "Execution"]
         for header, column in zip(headers, zip(*metrics)):
-            cls._logger.log(logging.INFO, f"Formatted {header} Metrics:")
+            cls._formatted_logger.log(logging.INFO, f"Formatted {header} Metrics:")
             for value in column:
-                cls._logger.log(logging.INFO, f"  {value}")
+                cls._formatted_logger.log(logging.INFO, f"  {value}")
             
     @classmethod
     def reset(cls) -> None:

@@ -2,7 +2,7 @@ import importlib
 import pathlib
 
 from typing import List
-from tools.tool import Tool
+from tools.tool import Tool, ToolType
 
 
 class ToolRegistry:
@@ -47,7 +47,7 @@ class ToolRegistry:
         return list(cls._tools.values())
 
     @classmethod
-    def get_by_type(cls, type: str) -> List[Tool]:
+    def get_by_type(cls, type: ToolType) -> List[Tool]:
         """Retrieve tools by type."""
         cls.__ensure_initialized()
         return [tool for tool in cls._tools.values() if tool.type == type]

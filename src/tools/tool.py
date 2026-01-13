@@ -1,9 +1,14 @@
 import inspect
 
+from enum import Enum
 from typing import get_type_hints, get_args, get_origin, Any, Union, List, Dict, Tuple
 
+class ToolType(Enum):
+    ATOMIC = "atomic"
+    MACRO = "macro"
+
 class Tool:
-    def __init__(self, name: str, description: str, category: str, type: str, implementation: callable):
+    def __init__(self, name: str, description: str, category: str, type: ToolType, implementation: callable):
         self.name = name
         self.description = description
         self.category = category
@@ -135,7 +140,7 @@ class Tool:
             f" |- Name: {self.name}\n"
             f" |- Category: {self.category}\n"
             f" |- Description: {self.description}\n"
-            f" |- Type: {self.type}\n"
+            f" |- Tool type: {self.type.value}\n"
             f" |- Input schema:\n\t{inputs_str}\n"
             f" |- Output schema:\n\t{output_str}\n"
         )

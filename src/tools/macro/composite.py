@@ -8,6 +8,7 @@ and test how architectures handle macro vs atomic tool selection.
 
 from typing import TypedDict, List, Optional
 from tools.decorator import tool
+from tools.tool import ToolType
 
 
 # ============================================================================
@@ -59,7 +60,7 @@ class DocumentBatchOutput(TypedDict):
     name="plan_trip",
     description="Plan a complete trip by getting weather forecast, attractions, and activity recommendations for a destination.",
     category="planning",
-    type="macro"
+    type=ToolType.MACRO
 )
 def plan_trip(
     destination: str,
@@ -117,7 +118,7 @@ def plan_trip(
     name="analyze_stock_with_news",
     description="Analyze a stock by getting its current price, recent news, and sentiment analysis of the news.",
     category="finance",
-    type="macro"
+    type=ToolType.MACRO
 )
 def analyze_stock_with_news(
     symbol: str,
@@ -139,7 +140,6 @@ def analyze_stock_with_news(
             current_price = price_result.get("price", 0.0)
 
         # Get news about the stock
-        company_name = symbol  # Could enhance with a lookup
         news_result = get_news(f"{symbol} stock", max_results=news_count)
         news_items = news_result.get("news", []) if "error" not in news_result else []
 
@@ -183,7 +183,7 @@ def analyze_stock_with_news(
     name="process_text_multilingual",
     description="Process text by cleaning, translating to multiple languages, and analyzing sentiment.",
     category="text",
-    type="macro"
+    type=ToolType.MACRO
 )
 def process_text_multilingual(
     text: str,
@@ -233,7 +233,7 @@ def process_text_multilingual(
     name="research_topic",
     description="Research a topic by searching the web and news, then summarizing the findings.",
     category="research",
-    type="macro"
+    type=ToolType.MACRO
 )
 def research_topic(
     topic: str,
@@ -279,7 +279,7 @@ def research_topic(
     name="analyze_documents_batch",
     description="Analyze multiple documents in a directory by reading each file and performing sentiment analysis.",
     category="documents",
-    type="macro"
+    type=ToolType.MACRO
 )
 def analyze_documents_batch(
     directory_path: str,

@@ -7,6 +7,7 @@ from features import ChatClarificationFeature, RefinementFeature, ValidationRefi
 from models.workflows import LinearWorkflow, StructuredWorkflow
 from orchestrators import ConfigurableOrchestrator
 from strategies import MonolithicStrategy, IncrementalStrategy, BottomUpStrategy
+from tools.tool import ToolType
 from tools.registry import ToolRegistry
 from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
@@ -77,15 +78,19 @@ def _tools_factory(args):
     if args.no_tools:
         return []
     
-    all_tools = ToolRegistry.get_all_tools()
+    if args.atomic_tools_only:
+        all_tools = ToolRegistry.get_by_type(ToolType.ATOMIC)
+    elif args.macro_tools_only:
+        all_tools = ToolRegistry.get_by_type(ToolType.MACRO)
+    else:
+        all_tools = ToolRegistry.get_all_tools()
 
-    if not args.tools:
+    if not args.select_tools:
         return all_tools
     
     selected_tools = []
-    for tool_name in args.tools:
-        tool = ToolRegistry.get(tool_name)
-        selected_tools.append(tool)
+    for tool_name in args.select_tools:
+        selected_tools.append(tool for tool in all_tools if tool.name == tool_name)
 
     return selected_tools
 
@@ -125,13 +130,15 @@ def main():
     argparser.add_argument("--workflow-model", type=str, choices=["linear", "structured"], default="structured",
                             help="Which workflow class to use for generation / loading (default: structured)")
 
-    # Features (flags)
+    # Features
     argparser.add_argument("--chat-clarification", action="store_true", help="Enable ChatClarificationFeature")
     argparser.add_argument("--refinement", action="store_true", help="Enable RefinementFeature")
     argparser.add_argument("--validation-refinement", action="store_true", help="Enable ValidationRefinementFeature")
 
     # Tools
-    argparser.add_argument("--tools", nargs="+", help="Subset of tools to enable (by name)")
+    argparser.add_argument("--select-tools", nargs="+", help="Subset of tools to enable (by name) (default: all tools)")
+    argparser.add_argument("--atomic-tools-only", action="store_true", help="Enable only atomic tools")
+    argparser.add_argument("--macro-tools-only", action="store_true", help="Enable only macro tools")
     argparser.add_argument("--no-tools", action="store_true", help="Disable all tools")
 
     # =========================================================
@@ -155,7 +162,6 @@ def main():
     # Reporting Settings
     # =========================================================
     argparser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    argparser.add_argument("--display-formatted-metrics", action="store_true", help="Display formatted metrics at the end of all runs")
 
     args = argparser.parse_args()
 
@@ -237,8 +243,7 @@ def main():
         # Display metrics
         formatted_metrics.append(MetricUtils.display())
     
-    if args.display_formatted_metrics:
-        MetricUtils.display_formatted_metrics(formatted_metrics)
+    MetricUtils.display_formatted_metrics(formatted_metrics)
 
 if __name__ == "__main__":
     main()

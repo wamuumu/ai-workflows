@@ -1,6 +1,6 @@
-from tools.registry import Tool, ToolRegistry
+from tools.registry import Tool, ToolType, ToolRegistry
 
-def tool(*, name: str, description: str, category: str, type: str = "atomic"):
+def tool(*, name: str, description: str, category: str, type: ToolType = ToolType.ATOMIC):
     def decorator(function):
         tool_info = Tool(
             name=name,
