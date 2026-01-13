@@ -77,7 +77,7 @@ def _tools_factory(args):
     if args.no_tools:
         return []
     
-    all_tools = ToolRegistry.get_all()
+    all_tools = ToolRegistry.get_all_tools()
 
     if not args.tools:
         return all_tools
