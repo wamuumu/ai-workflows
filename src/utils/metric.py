@@ -520,6 +520,7 @@ class MetricUtils:
         n = len(execution_results)
         matrix = np.zeros((n, n))
 
+        formatted_txt = ""
         for i in range(n):
             for j in range(i, n):
                 score = cls._execution_result_similarity(
@@ -528,6 +529,9 @@ class MetricUtils:
                 )
                 matrix[i, j] = score
                 matrix[j, i] = score
+        
+        for line in matrix:
+            formatted_txt += "".join([f"{score:.3f}, " for score in line])[:-2] + "\n"
 
         # Print matrix (reuse your existing utility)
         cls._print_similarity_matrix(
@@ -549,6 +553,9 @@ class MetricUtils:
         cls._logger.log(logging.INFO, f"Standard deviation: {std_similarity:.3f}")
         cls._logger.log(logging.INFO, f"Min similarity: {min_similarity:.3f}")
         cls._logger.log(logging.INFO, f"Max similarity: {max_similarity:.3f}\n")
+
+        cls._formatted_logger.log(logging.INFO, f"    Formatted data similarity scores:")
+        cls._formatted_logger.log(logging.INFO, "\n" + formatted_txt)
 
     @classmethod
     def _compare_step_outputs(cls, output_a: Any, output_b: Any) -> float:

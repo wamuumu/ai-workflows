@@ -5,14 +5,14 @@ from utils.workflow import WorkflowUtils, EXECUTIONS, WORKFLOWS
 from utils.metric import MetricUtils
 from pathlib import Path
 
-def _response_model_factory(name: str):
+def _workflow_model_factory(name: str):
     mapping = {
         "linear": LinearWorkflow,
         "structured": StructuredWorkflow,
     }
     cls = mapping.get(name.lower())
     if cls is None:
-        raise ValueError(f"Unknown response model '{name}'. Valid: {', '.join(mapping.keys())}")
+        raise ValueError(f"Unknown workflow model '{name}'. Valid: {', '.join(mapping.keys())}")
     return cls
 
 def main():
@@ -21,7 +21,7 @@ def main():
     argparser = argparse.ArgumentParser(description="AI Workflow Validator")
 
     argparser.add_argument("--reference", type=str, help="Path to the reference constraints JSON file")
-    argparser.add_argument("--response-model", type=str, choices=["linear", "structured"], default="structured",
+    argparser.add_argument("--workflow-model", type=str, choices=["linear", "structured"], default="structured",
                             help="Which workflow class to use for validation (default: structured)")
     argparser.add_argument("--workflow-similarity", action="store_true", help="Compute similarity scores between workflows")
     argparser.add_argument("--execution-similarity", action="store_true", help="Compute similarity scores between executions")
@@ -39,13 +39,13 @@ def main():
         args.intent_resolution = True
         args.reasoning_coherence = True
 
-    response_model_cls = _response_model_factory(args.response_model)
+    workflow_model_cls = _workflow_model_factory(args.workflow_model)
     
     # Retrieve workflows to compare
     workflows = []
     workflow_files = sorted(Path(WORKFLOWS).glob("workflow_*.json"))
     for i, file in enumerate(workflow_files):
-        workflows.append(WorkflowUtils.load_workflow(str(file), response_model_cls))
+        workflows.append(WorkflowUtils.load_workflow(str(file), workflow_model_cls))
         print(f"Loaded workflow {i+1} from {file}")
 
     # Compute similarity matrix between workflows
