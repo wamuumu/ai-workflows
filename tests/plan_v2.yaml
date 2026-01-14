@@ -81,7 +81,7 @@ tests:
   # Goal: Prove that features improve metrics independently of architecture
   # Control: All use monolithic + structured as base (weakest architecture)
   # ---------------------------------------------------------
-  - id: "T5_FEAT_REFINEMENT"
+  - id: "T5_FEAT_VALIDATION_REFINEMENT"
     architecture: "monolithic"
     features: ["validation_refinement"]
     toolset: "standard"
@@ -96,7 +96,7 @@ tests:
 
   - id: "T6_FEAT_CHAT"
     architecture: "monolithic"
-    features: ["chat_clarification"]
+    features: ["chat"]
     toolset: "standard"
     workflow: "structured"
     llm_model: "gpt-oss"
@@ -106,17 +106,17 @@ tests:
       since unclear requirements are addressed upfront. Trade-off: Requires
       user interaction, slightly reduced efficiency.
 
-  - id: "T7_FEAT_COMBINED"
+  - id: "T7_FEAT_REFINEMENT"
     architecture: "monolithic"
-    features: ["chat_clarification", "validation_refinement"]
+    features: ["refinement"]
     toolset: "standard"
     workflow: "structured"
     llm_model: "gpt-oss"
     hypothesis: >
-      Combining both features should yield additive improvements: better
-      intent resolution (from clarification) AND better task completion
-      (from refinement). Expected: Highest quality among monolithic tests,
-      but lowest efficiency due to both feature costs.
+      Refinement feature allows post-generation improvement without
+      validation. Expected: Moderate gains in reasoning coherence and
+      task completion over T2 by fixing minor errors. Less effective than
+      full validation refinement (T5) but more efficient.
 
   # ---------------------------------------------------------
   # GROUP 4: TOOLSET GRANULARITY
