@@ -738,7 +738,7 @@ class MetricUtils:
         cls._has_finished = True
 
     @classmethod
-    def display(cls) -> List[str]:
+    def display(cls) -> Dict[str, str]:
         def print_metric_set(title: str, metric_set: MetricSet, indent: int = 0):
             prefix = " " * indent
             cls._logger.log(logging.INFO, f"{prefix}{title}:")
@@ -746,7 +746,7 @@ class MetricUtils:
             cls._logger.log(logging.INFO, f"{prefix}  number_of_calls  : {metric_set.number_of_calls}")
             cls._logger.log(logging.INFO, f"{prefix}  total_tokens     : {metric_set.total_tokens}")
         
-        def get_formatted_metric_set(metric_set: MetricSet) -> List[str]:
+        def get_formatted_metric_set(metric_set: MetricSet) -> str:
             line = f"{metric_set.time_taken:.2f}, {metric_set.number_of_calls}, {metric_set.total_tokens}"
             return line
 
@@ -756,26 +756,38 @@ class MetricUtils:
         # Execution metrics
         print_metric_set("Execution", cls._metrics.execution)
 
+        formatted_lines = {
+            "generation": get_formatted_metric_set(cls._metrics.generation),
+            "execution": get_formatted_metric_set(cls._metrics.execution)
+        }
+
         # Feature-level metrics
         if cls._metrics.features:
             cls._logger.log(logging.INFO, "Features:")
             for feature_name, feature_metrics in cls._metrics.features.items():
                 print_metric_set(feature_name, feature_metrics, indent=2)
+                formatted_lines[feature_name] = get_formatted_metric_set(feature_metrics)
         else:
             cls._logger.log(logging.INFO, "Features: None")
         
-        return [
-            get_formatted_metric_set(cls._metrics.generation),
-            get_formatted_metric_set(cls._metrics.execution)
-        ]
+        return formatted_lines
 
     @classmethod
-    def display_formatted_metrics(cls, metrics: List[List[str]]) -> None:
-        headers = ["Generation", "Execution"]
-        for header, column in zip(headers, zip(*metrics)):
+    def display_formatted_metrics(cls, metrics: List[Dict[str, str]]) -> None:    
+        
+        headers = set()
+        for group in metrics:
+            for key in group.keys():
+                headers.add(key)
+        headers = list(headers)
+        
+        for header in headers:
             cls._formatted_logger.log(logging.INFO, f"Formatted {header} Metrics:")
-            for value in column:
-                cls._formatted_logger.log(logging.INFO, f"  {value}")
+            for group in metrics:
+                if header in group:
+                    cls._formatted_logger.log(logging.INFO, f"  {group[header]}")
+                else:
+                    cls._formatted_logger.log(logging.INFO, f"  N/A")
             
     @classmethod
     def reset(cls) -> None:

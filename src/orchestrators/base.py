@@ -88,7 +88,7 @@ class ConfigurableOrchestrator:
         self.post_features = [f for f in features if f.get_phase() == "post"]
         self.logger = LoggerUtils()
     
-    def generate(self, user_prompt: str, response_model: BaseModel, max_retries: int = 5, save: bool = True, show: bool = True, debug: bool = False) -> BaseModel:
+    def generate(self, user_prompt: str, response_model: BaseModel, max_retries: int = 5, save: bool = True, show: bool = False, debug: bool = False) -> BaseModel:
 
         self.logger.log(logging.INFO, f"Workflow generation started...")
         context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt, available_tools=self.available_tools)
