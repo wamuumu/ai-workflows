@@ -96,7 +96,7 @@ def _tools_factory(args):
 
 def _features_factory(args):
     selected_features = []
-    if args.chat_clarification:
+    if args.chat:
         selected_features.append(ChatClarificationFeature())
     if args.refinement:
         selected_features.append(RefinementFeature())
@@ -131,7 +131,7 @@ def main():
                             help="Which workflow class to use for generation / loading (default: structured)")
 
     # Features
-    argparser.add_argument("--chat-clarification", action="store_true", help="Enable ChatClarificationFeature")
+    argparser.add_argument("--chat", action="store_true", help="Enable ChatClarificationFeature")
     argparser.add_argument("--refinement", action="store_true", help="Enable RefinementFeature")
     argparser.add_argument("--validation-refinement", action="store_true", help="Enable ValidationRefinementFeature")
 
