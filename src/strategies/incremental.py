@@ -112,12 +112,14 @@ class IncrementalStrategy(StrategyBase):
                 title = "N/A"
                 description = "N/A"
                 target_objective = user_prompt
+                metadata = None
 
                 for step in reversed(steps):
                     if hasattr(step, 'is_final') and step.is_final:
                         title = step.workflow_title
                         description = step.workflow_description
                         target_objective = step.target_objective
+                        metadata = step.metadata
                         break
                 
                 # Sanitize final steps by removing metadata
@@ -126,11 +128,13 @@ class IncrementalStrategy(StrategyBase):
                         del step.workflow_title
                         del step.workflow_description
                         del step.target_objective
+                        del step.metadata
 
                 return response_model(
                     title=title,
                     description=description,
                     target_objective=target_objective,
+                    metadata=metadata,
                     steps=steps
                 )
             

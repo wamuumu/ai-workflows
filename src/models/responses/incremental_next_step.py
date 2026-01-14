@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional
 
-from models.workflows.base import FinalStep as BaseFinalStep
+from models.workflows.base import FinalStep as BaseFinalStep, Metadata as BaseMetadata
 from models.workflows.linear_workflow import ToolStep as LinearToolStep, LLMStep as LinearLLMStep
 from models.workflows.structured_workflow import ToolStep as StructuredToolStep, LLMStep as StructuredLLMStep
 
@@ -10,6 +10,7 @@ class FinalStep(BaseFinalStep):
     workflow_title: str = Field(..., description="Title of the entire completed workflow")
     workflow_description: str = Field(..., description="Description of the entire completed workflow")
     target_objective: str = Field(..., description="The intended objective based on the initial user prompt")
+    metadata: BaseMetadata = Field(..., description="Additional metadata about the workflow")
 
 class NextLinearStepBatch(BaseModel):
     """Response model for generating multiple linear workflow steps at once (1-3 steps)."""
