@@ -34,34 +34,5 @@
   "expected_step_count_range": {
     "atomic": {"min": 8, "max": 12},
     "macro": {"min": 6, "max": 10}
-  },
-  "expected_goal": "Provide a rain-aware activity plan for London, summarize and deliver it via email.",
-  "expected_thoughts": {
-    "atomic": [
-      "Get the current weather for London for the next 3 days",
-      "Determine whether any of the forecasted days include rain.",
-      "Rain is expected, so fetch indoor activity ideas for London.",
-      "Save indoor activities to a file.",
-      "Compose an email summarizing the forecast and indoor activities.",
-      "Send the email with indoor activity information.",
-      "All tasks for the rain scenario are complete.",
-      "No rain expected, so fetch outdoor activity ideas for London.",
-      "Save outdoor activities to a file.",
-      "Compose an email summarizing the forecast and outdoor activities.",
-      "Send the email with outdoor activity information.",
-      "All tasks for the no-rain scenario are complete."
-    ],
-    "macro": [
-      "Obtain weather forecast for London for the next 3 days and determine the activities.",
-      "Determine if the activities are indoor or outdoor.",
-      "Save indoor activities to a file.",
-      "Compose an email summarizing the forecast and indoor activities.",
-      "Send the email with indoor activity information.",
-      "All tasks for the rain scenario are complete.",
-      "Save outdoor activities to a file.",
-      "Compose an email summarizing the forecast and outdoor activities.",
-      "Send the email with outdoor activity information.",
-      "All tasks for the no-rain scenario are complete."
-    ]
   }
 }

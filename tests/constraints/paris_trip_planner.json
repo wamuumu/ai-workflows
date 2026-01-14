@@ -21,26 +21,5 @@
   "expected_step_count_range": {
     "atomic": {"min": 6, "max": 10},
     "macro": {"min": 6, "max": 10}
-  },
-  "expected_goal": "Plan a 3-day Paris trip: get weather forecast, convert $500 USD to EUR, find tourist attractions, translate them to Italian, and save everything to paris_trip.txt.",
-  "expected_thoughts": {
-    "atomic": [
-      "Get the weather forecast for Paris for the next 3 days starting Monday.",
-      "Convert $500 USD to EUR using current exchange rates.",
-      "Search for popular tourist attractions in Paris.",
-      "Translate the attraction names to Italian.",
-      "Compile all information into a summary document.",
-      "Write the summary to paris_trip.txt.",
-      "All tasks are complete."
-    ],
-    "macro": [
-      "Get the weather forecast for Paris for the next 3 days starting Monday.",
-      "Convert $500 USD to EUR using current exchange rates.",
-      "Search for popular tourist attractions in Paris.",
-      "Translate the attraction names to Italian.",
-      "Compile all information into a summary document.",
-      "Write the summary to paris_trip.txt.",
-      "All tasks are complete."
-    ]
   }
 }

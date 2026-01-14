@@ -29,28 +29,5 @@
   "expected_step_count_range": {
     "atomic": {"min": 3, "max": 8},
     "macro": {"min": 3, "max": 8}
-  },
-  "expected_goal": "Classify input text using predefined labels. If confidence is low, apply preprocessing (cleaning, translation) and reclassify.",
-  "expected_thoughts": {
-    "atomic": [
-      "Classify the input text using the predefined labels.",
-      "Check the classification confidence score.",
-      "Confidence is high, classification is complete.",
-      "All tasks for the high-confidence scenario are complete.",
-      "Confidence is low, apply text cleaning preprocessing.",
-      "Translate the cleaned text to a standard language.",
-      "Reclassify the preprocessed text.",
-      "All tasks for the low-confidence scenario are complete."
-    ],
-    "macro": [
-      "Classify the input text using the predefined labels.",
-      "Check the classification confidence score.",
-      "Confidence is high, classification is complete.",
-      "All tasks for the high-confidence scenario are complete.",
-      "Confidence is low, apply text cleaning preprocessing.",
-      "Translate the cleaned text to a standard language.",
-      "Reclassify the preprocessed text.",
-      "All tasks for the low-confidence scenario are complete."
-    ]
   }
 }

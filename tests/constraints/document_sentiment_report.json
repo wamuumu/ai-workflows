@@ -21,26 +21,5 @@
   "expected_step_count_range": {
     "atomic": {"min": 5, "max": 10},
     "macro": {"min": 5, "max": 10}
-  },
-  "expected_goal": "Analyze sentiment of all .txt files in documents folder, create a comparison report of most positive vs negative documents, and email it to manager@company.com.",
-  "expected_thoughts": {
-    "atomic": [
-      "List all .txt files in the documents folder.",
-      "Read the content of each .txt file.",
-      "Analyze the sentiment of each document.",
-      "Rank documents from most positive to most negative based on sentiment scores.",
-      "Create a comparison report highlighting the most positive and most negative documents.",
-      "Email the sentiment comparison report to manager@company.com.",
-      "All tasks are complete."
-    ],
-    "macro": [
-      "List all .txt files in the documents folder.",
-      "Read the content of each .txt file.",
-      "Analyze the sentiment of each document.",
-      "Rank documents from most positive to most negative based on sentiment scores.",
-      "Create a comparison report highlighting the most positive and most negative documents.",
-      "Email the sentiment comparison report to manager@company.com.",
-      "All tasks are complete."
-    ]
   }
 }

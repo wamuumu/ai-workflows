@@ -21,24 +21,5 @@
   "expected_step_count_range": {
     "atomic": {"min": 6, "max": 12},
     "macro": {"min": 6, "max": 12}
-  },
-  "expected_goal": "Search the web for multilingual customer reviews, clean them, translate to a common language, create embeddings, and cluster them conceptually.",
-  "expected_thoughts": {
-    "atomic": [
-      "Search the web for multilingual customer reviews.",
-      "Clean and normalize the retrieved review texts.",
-      "Translate all reviews to a common target language.",
-      "Generate text embeddings for the translated reviews.",
-      "Cluster the embeddings to group reviews by concept or meaning.",
-      "All tasks are complete."
-    ],
-    "macro": [
-      "Search the web for multilingual customer reviews.",
-      "Clean and normalize the retrieved review texts.",
-      "Translate all reviews to a common target language.",
-      "Generate text embeddings for the translated reviews.",
-      "Cluster the embeddings to group reviews by concept or meaning.",
-      "All tasks are complete."
-    ]
   }
 }

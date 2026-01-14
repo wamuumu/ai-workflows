@@ -31,30 +31,5 @@
   "expected_step_count_range": {
     "atomic": {"min": 5, "max": 10},
     "macro": {"min": 5, "max": 10}
-  },
-  "expected_goal": "Generate numerical training data, compute descriptive statistics, train a regression model, generate predictions, and email the report if target variance is below threshold.",
-  "expected_thoughts": {
-    "atomic": [
-      "Generate a sample of numerical training data.",
-      "Compute descriptive statistics for the generated data.",
-      "Train a linear regression model on the data.",
-      "Generate predictions using the trained model.",
-      "Check if the variance of the target variable is below the threshold.",
-      "Variance is low, compose and send an email with the report.",
-      "All tasks for the low-variance scenario are complete.",
-      "Variance is above threshold, no email needed.",
-      "All tasks for the high-variance scenario are complete."
-    ],
-    "macro": [
-      "Generate a sample of numerical training data.",
-      "Compute descriptive statistics for the generated data.",
-      "Train a linear regression model on the data.",
-      "Generate predictions using the trained model.",
-      "Check if the variance of the target variable is below the threshold.",
-      "Variance is low, compose and send an email with the report.",
-      "All tasks for the low-variance scenario are complete.",
-      "Variance is above threshold, no email needed.",
-      "All tasks for the high-variance scenario are complete."
-    ]
   }
 }
