@@ -5,15 +5,12 @@ from models.workflows.base import Metadata, ToolParameter, BaseStep, FinalStep
 from tools.registry import ToolRegistry
 
 class Transition(BaseModel):
-    """Defines conditional branching to next step.
-    
-    - All transitions from a single step must be mutually exclusive.
-    """
+    """Defines conditional branching to next step."""
     condition: str = Field(
         ..., 
         description=(
             "Condition to evaluate for this transition. "
-            "Use clear and simple conditions like 'if yes', 'if no', 'true', 'false', 'success', 'error', 'always', 'default', etc."
+            "Use clear and simple conditions labels like 'if success', 'if failure', ' if contains XYZ', 'always', 'if yes', 'if no', etc. "
         )
     )
     next_step: int = Field(..., description="Target step ID to transition to if condition is met")
@@ -37,6 +34,8 @@ class LLMStep(BaseStep):
     
     - Used for non-deterministic decisions (e.g., analysis, classification, branching, summarization, etc.)
     - Output an unstructure text 'response' field that can be referenced by downstream steps.
+    - All possible outcomes must be handled via transitions to avoid dead-ends.
+    - Transitions should use clear conditions based on expected LLM outputs.
     """
     action: Literal["call_llm"] = "call_llm"
     prompt: str = Field(
@@ -50,7 +49,11 @@ class LLMStep(BaseStep):
     )
     transitions: List[Transition] = Field(
         ...,
-        description="List of transitions defining control flow. Must be mutually exclusive conditions covering all outcomes."
+        description=(
+            "List of transitions defining control flow. Must be mutually exclusive conditions covering all outcomes. ",
+            "For example, a possible scenario can contain: 'if A', 'if B', 'if C', etc. where A, B, C are distinct conditions based on LLM output."
+            "You MUST ensure that all possible conditions are covered to avoid dead-ends in the workflow."
+        )
     )
 
 class StructuredWorkflow(BaseModel):
