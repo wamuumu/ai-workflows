@@ -10,7 +10,6 @@ from typing import TypedDict, List, Optional
 from tools.decorator import tool
 from tools.tool import ToolType
 
-
 # ============================================================================
 # Output Type Definitions
 # ============================================================================
@@ -51,6 +50,10 @@ class DocumentBatchOutput(TypedDict):
     results: List[dict]
     summary: str
 
+class WriteOutput(TypedDict):
+    file_written: bool
+    email_sent: bool
+    message: str
 
 # ============================================================================
 # Macro Tool Implementations
@@ -58,7 +61,7 @@ class DocumentBatchOutput(TypedDict):
 
 @tool(
     name="plan_trip",
-    description="Plan a complete trip by getting weather forecast, attractions, and activity recommendations for a destination.",
+    description="Plan a complete trip by getting weather forecast and filtering activities accordingly.",
     category="planning",
     type=ToolType.MACRO
 )
@@ -113,6 +116,41 @@ def plan_trip(
     except Exception as e:
         return {"error": str(e)}
 
+@tool(
+    name="write",
+    description="Either write a file or an email, or both, based on the provided input.",
+    category="utils",
+    type=ToolType.MACRO
+)
+def write(
+    file_path: Optional[str] = None,
+    content: str = "",
+    recipient: Optional[str] = None,
+    subject: Optional[str] = "No Subject"
+) -> WriteOutput:
+    """
+    Combines: write_file, send_email
+    """
+    from tools.documents import write_file
+    from tools.communication import send_email
+
+    if not file_path and not recipient:
+        return {"error": "At least one of file_path or recipient must be provided."}
+    elif not content:
+        return {"error": "Content to write/send must be provided."}
+    elif recipient and file_path:
+        file_out = write_file(file_path, content)
+        email_out = send_email(recipient, subject, content)
+    elif recipient and not file_path:
+        email_out = send_email(recipient, subject, content)
+    elif file_path and not recipient:
+        file_out = write_file(file_path, content)
+
+    return WriteOutput(
+        file_written=True if file_out else False,
+        email_sent=True if email_out else False,
+        message=email_out.get("message") if email_out else ""
+    )
 
 @tool(
     name="analyze_stock_with_news",

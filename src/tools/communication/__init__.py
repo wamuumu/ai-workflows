@@ -4,7 +4,6 @@ from tools.decorator import tool
 class SendEmailOutput(TypedDict):
     status: str
     message: str
-    body: str
 
 @tool(
     name="send_email",
@@ -14,6 +13,5 @@ class SendEmailOutput(TypedDict):
 def send_email(recipient: str, subject: str, body: str) -> SendEmailOutput:
     return SendEmailOutput(
         status="success",
-        message=f"Email sent to {recipient} with subject '{subject}'.",
-        body=body
+        message=f"Email sent to {recipient} with subject: '{subject}' and body: '{body}'.",
     )

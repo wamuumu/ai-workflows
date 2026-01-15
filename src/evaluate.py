@@ -1,19 +1,8 @@
 import argparse
 
-from models.workflows import LinearWorkflow, StructuredWorkflow
 from utils.workflow import WorkflowUtils, EXECUTIONS, WORKFLOWS
 from utils.metric import MetricUtils
 from pathlib import Path
-
-def _workflow_model_factory(name: str):
-    mapping = {
-        "linear": LinearWorkflow,
-        "structured": StructuredWorkflow,
-    }
-    cls = mapping.get(name.lower())
-    if cls is None:
-        raise ValueError(f"Unknown workflow model '{name}'. Valid: {', '.join(mapping.keys())}")
-    return cls
 
 def main():
 
@@ -21,8 +10,6 @@ def main():
     argparser = argparse.ArgumentParser(description="AI Workflow Validator")
 
     argparser.add_argument("--reference", type=str, help="Path to the reference constraints JSON file")
-    argparser.add_argument("--workflow-model", type=str, choices=["linear", "structured"], default="structured",
-                            help="Which workflow class to use for validation (default: structured)")
     argparser.add_argument("--workflow-similarity", action="store_true", help="Compute similarity scores between workflows")
     argparser.add_argument("--execution-similarity", action="store_true", help="Compute similarity scores between executions")
     argparser.add_argument("--correctness-scores", action="store_true", help="Compute correctness scores against reference constraints")
@@ -38,14 +25,12 @@ def main():
         args.correctness_scores = True
         args.intent_resolution = True
         args.reasoning_coherence = True
-
-    workflow_model_cls = _workflow_model_factory(args.workflow_model)
     
     # Retrieve workflows to compare
     workflows = []
-    workflow_files = sorted(Path(WORKFLOWS).glob("workflow_*.json"))
+    workflow_files = sorted(Path(WORKFLOWS).glob("workflow_*.json"), key=lambda x: int(x.stem.split('_')[-1]))
     for i, file in enumerate(workflow_files):
-        workflows.append(WorkflowUtils.load_workflow(str(file), workflow_model_cls))
+        workflows.append(WorkflowUtils.load_workflow(str(file)))
         print(f"Loaded workflow {i+1} from {file}")
 
     # Compute similarity matrix between workflows
@@ -55,7 +40,7 @@ def main():
         print("Skipping workflow similarities...\n")
 
     executions = []
-    execution_files = sorted(Path(EXECUTIONS).glob("execution_*.json"))
+    execution_files = sorted(Path(EXECUTIONS).glob("execution_*.json"), key=lambda x: int(x.stem.split('_')[-1]))
     for i, file in enumerate(execution_files):
         executions.append(WorkflowUtils.load_execution(str(file)))
         print(f"Loaded execution {i+1} from {file}")

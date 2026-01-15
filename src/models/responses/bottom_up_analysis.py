@@ -1,11 +1,9 @@
 from pydantic import BaseModel, Field
 from typing import List, Literal
 
-from tools.registry import ToolRegistry
-
 class ToolRequirement(BaseModel):
     """An object representing a required tool for the workflow."""
-    tool_name: str = Field(..., description="Name of the required tool", json_schema_extra={"enum": ToolRegistry.get_all_tool_names()})
+    tool_name: str = Field(..., description="Name of the required tool")
     purpose: str = Field(..., description="Why this tool is needed")
     inputs_needed: List[str] = Field(..., description="What inputs this tool needs")
     outputs_produced: List[str] = Field(..., description="What outputs this tool produces")

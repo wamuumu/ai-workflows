@@ -1,6 +1,5 @@
 import os
 import html
-import uuid
 import json
 
 from pyvis.network import Network
@@ -15,7 +14,8 @@ EXECUTIONS = os.path.join(ROOT, "data", "executions")
 class WorkflowUtils:
     """Utility class for managing workflows."""
 
-    _run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    _date = datetime.now().strftime("%Y%m%d%H%M%S")
+    _run_id = 1
 
     @classmethod
     def show(cls, workflow: BaseModel) -> None:
@@ -42,8 +42,10 @@ class WorkflowUtils:
         return file_path
 
     @classmethod
-    def load_workflow(cls, filepath: str, model: BaseModel) -> BaseModel:
+    def load_workflow(cls, filepath: str) -> BaseModel:
         """Load a workflow from a JSON file into the specified model format."""
+
+        from models.workflows import LinearWorkflow, StructuredWorkflow
         
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Workflow file not found: {filepath}")
@@ -51,12 +53,15 @@ class WorkflowUtils:
         with open(filepath, "r", encoding="utf-8") as f:
             workflow_data = f.read()
         
-        try:
-            workflow_data = json.loads(workflow_data)
-            return model.model_validate(workflow_data)
-        except Exception as e:
-            print(f"Error loading workflow: {e}")
-            return None
+        workflow_json = json.loads(workflow_data)
+
+        steps = workflow_json.get("steps", [])
+        has_transitions = any("transitions" in step for step in steps)
+
+        if has_transitions:
+            return StructuredWorkflow.model_validate(workflow_json)
+        else:
+            return LinearWorkflow.model_validate(workflow_json)
 
     @classmethod
     def list_workflows(cls) -> list[str]:
@@ -225,4 +230,14 @@ class WorkflowUtils:
     @classmethod
     def _get_filename(cls, prefix: str, extension: str) -> str:
         """Generate a timestamped filename."""
-        return f"{prefix}_{cls._run_id}_{uuid.uuid4().hex}.{extension}"
+        return f"{prefix}_{cls._date}_{cls._run_id}.{extension}"
+
+    @classmethod
+    def increment_run_id(cls):
+        """Increment the run ID counter."""
+        cls._run_id += 1
+    
+    @classmethod
+    def set_run_id(cls, run_id: int):
+        """Set the run ID counter to a specific value."""
+        cls._run_id = run_id

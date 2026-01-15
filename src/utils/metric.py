@@ -310,15 +310,16 @@ class MetricUtils:
         
             # Score mode-specific tool usage
             tool_scores = []
-            expected_tools_calls = {
-                **expected_tool_calls.get(mode, {}),
-                **expected_tool_calls.get("common", {})
-            }
+            expected_tools_calls = expected_tool_calls.get(mode, {})
             if expected_tools_calls:
+                for tool_name, count in tool_count.items():
+                    if tool_name not in expected_tools_calls:
+                        tool_scores.append([0.5] * count) # Penalty for unexpected tools
+                    
                 for tool, limits in expected_tools_calls.items():
                     count = tool_count.get(tool, 0)
                     min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
-                    tool_scores.append(cls._get_score(count, min_calls, max_calls))
+                    tool_scores.append(max(0, cls._get_score(count, min_calls, max_calls)))
 
             # Expected LLM calls (properly check for action attribute)
             llm_count = sum(
@@ -328,7 +329,8 @@ class MetricUtils:
             expected_llm_calls = reference_data.get("expected_llm_calls", {}).get(mode, {})
             if expected_llm_calls:
                 min_calls, max_calls = expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf'))
-                llm_score = cls._get_score(llm_count, min_calls, max_calls)
+                print(llm_count, min_calls, max_calls)
+                llm_score = max(0, cls._get_score(llm_count, min_calls, max_calls))
             else:
                 llm_score = 0.0
 
@@ -340,7 +342,7 @@ class MetricUtils:
             expected_total_steps = reference_data.get("expected_step_count_range", {}).get(mode, {})
             if expected_total_steps:
                 min_steps, max_steps = expected_total_steps.get("min", 0), expected_total_steps.get("max", float('inf'))
-                step_score = cls._get_score(total_steps, min_steps, max_steps)
+                step_score = max(0, cls._get_score(total_steps, min_steps, max_steps))
             else:
                 step_score = 0.0
 
@@ -355,16 +357,6 @@ class MetricUtils:
                 transition_score = matched / max(len(expected_branching), 1)
             else:
                 transition_score = 0.0
-            
-            # reference_goal = reference_data.get("expected_goal", "")
-            # goal_score = cls._string_embedding_score(workflow.target_objective, reference_goal)
-            
-            # reference_thoughts = "\n".join(reference_data.get("expected_thoughts", {}).get(mode, []))
-            # workflow_thoughts = "\n".join(
-            #     step.thoughts for step in workflow.steps 
-            #     if not getattr(step, 'is_final', False)
-            # )
-            # thoughts_score = cls._string_embedding_score(workflow_thoughts, reference_thoughts)
 
             # Overall correctness score
             weighted_scores = {
@@ -406,8 +398,6 @@ class MetricUtils:
             cls._logger.log(logging.INFO, f"    LLM call score: {result['llm_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Total step score: {result['step_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Branch transition score: {result['transition_score']:.3f}")
-            # cls._logger.log(logging.INFO, f"    Goal similarity score: {result['goal_score']:.3f}")
-            # cls._logger.log(logging.INFO, f"    Thoughts similarity score: {result['thoughts_score']:.3f}\n")
         temp_texts = ["","","","",""]
         cls._formatted_logger.log(logging.INFO, f"    Formatted data correctness scores:")
         for result in results:
@@ -427,8 +417,6 @@ class MetricUtils:
         cls._logger.log(logging.INFO, f"  Average correctness score: {np.mean(overall_scores):.3f}")
         cls._logger.log(logging.INFO, f"  Min correctness score: {np.min(overall_scores):.3f}")
         cls._logger.log(logging.INFO, f"  Max correctness score: {np.max(overall_scores):.3f}")
-        # cls._logger.log(logging.INFO, f"  Average goal similarity score: {np.mean([r['goal_score'] for r in results]):.3f}")
-        # cls._logger.log(logging.INFO, f"  Average thoughts similarity score: {np.mean([r['thoughts_score'] for r in results]):.3f}\n")
     
     @classmethod
     def _detect_mode(cls, tool_counter: Counter, expected_tool_calls: Dict[str, Any]) -> str:
@@ -444,17 +432,6 @@ class MetricUtils:
             return "macro"
         if atomic_used:
             return "atomic"
-        
-        # No expected tools used - check if there are common tools or default to atomic
-        common_tools = set(expected_tool_calls.get("common", {}).keys())
-        common_used = any(tool_counter.get(tool, 0) > 0 for tool in common_tools)
-        if common_used:
-            # Only common tools used, default to atomic mode
-            return "atomic"
-        
-        # No recognized tools at all - could be invalid or empty workflow
-        if sum(tool_counter.values()) == 0:
-            return "atomic"  # Empty workflow defaults to atomic
         
         return "invalid"  # Uses unknown tools
     

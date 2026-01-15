@@ -1,21 +1,18 @@
 from pydantic import BaseModel, Field
 from typing import Union
 
-from tools.registry import ToolRegistry
-
 class Metadata(BaseModel):
     """Metadata for a workflow step."""
     original_prompt: str = Field(..., description="The original user prompt that initiated the workflow")
 
 class ToolParameter(BaseModel):
     """Parameter for a tool call."""
-    key: str = Field(..., description="Parameter key matching selected tool input schema", json_schema_extra={"enum": ToolRegistry.get_all_input_keys()})
+    key: str = Field(..., description="Parameter key matching selected tool input schema")
     value: Union[str, int, float, bool] = Field(
         ..., 
         description=(
             "Literal value or reference to another step's output. "
             "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
-            f"Valid 'output_field' values are: {', '.join(['response'] + ToolRegistry.get_all_output_keys())}"
         )
     )
 

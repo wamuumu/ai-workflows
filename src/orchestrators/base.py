@@ -61,6 +61,8 @@ class Context(BaseModel):
 
     # Output context 
     workflow: Optional[BaseModel] = None
+    workflow_path: Optional[str] = None
+    workflow_visualization_path: Optional[str] = None
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -88,7 +90,7 @@ class ConfigurableOrchestrator:
         self.post_features = [f for f in features if f.get_phase() == "post"]
         self.logger = LoggerUtils()
     
-    def generate(self, user_prompt: str, response_model: BaseModel, max_retries: int = 5, save: bool = True, show: bool = False, debug: bool = False) -> BaseModel:
+    def generate(self, user_prompt: str, response_model: BaseModel, max_retries: int = 5, show: bool = False, debug: bool = False) -> Context:
 
         self.logger.log(logging.INFO, f"Workflow generation started...")
         context = Context(agents=self.agents, response_model=response_model, prompt=user_prompt, available_tools=self.available_tools)
@@ -116,16 +118,27 @@ class ConfigurableOrchestrator:
             except Exception as e:
                 self.logger.log(logging.ERROR, f"Error showing workflow: {e}")
 
-        if save:
-            try:
-                WorkflowUtils.save_workflow(context.workflow)
-                WorkflowUtils.save_visualization(context.workflow)
-            except Exception as e:
-                self.logger.log(logging.ERROR, f"Error saving workflow: {e}")
+        try:
+            context.workflow_path = WorkflowUtils.save_workflow(context.workflow)
+            context.workflow_visualization_path = WorkflowUtils.save_visualization(context.workflow)
+            WorkflowUtils.increment_run_id()
+            self.logger.log(logging.INFO, f"Workflow saved successfully.")
+        except Exception as e:
+            self.logger.log(logging.ERROR, f"Error saving workflow: {e}")
         
-        return context.workflow
+        return context
 
-    def run(self, workflow: BaseModel, max_retries: int = 5, debug: bool = False) -> None:
+    def run(self, workflow_path: str, max_retries: int = 5, debug: bool = False) -> None:
+
+        if not os.path.exists(workflow_path):
+            raise FileNotFoundError(f"Workflow file not found: {workflow_path}")
+        
+        workflow = WorkflowUtils.load_workflow(workflow_path)
+
+        wf_id = (os.path.splitext(workflow_path)[0]).split("_")[-1]
+        WorkflowUtils.set_run_id(int(wf_id))
+
+        print(f"Execution ID set to: {wf_id}\n")
 
         self.logger.log(logging.INFO, f"Workflow execution started...")
 

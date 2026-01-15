@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 from typing import List, Union, Literal
 
 from models.workflows.base import Metadata, ToolParameter, BaseStep, FinalStep
-from tools.registry import ToolRegistry
 
 class Transition(BaseModel):
     """Defines conditional branching to next step."""
@@ -22,7 +21,7 @@ class ToolStep(BaseStep):
     - Tool outputs produce fields that can be referenced in downstream transitions and steps.
     """
     action: Literal["call_tool"] = "call_tool"
-    tool_name: str = Field(..., description="Name of the tool to call", json_schema_extra={"enum": ToolRegistry.get_all_tool_names()})
+    tool_name: str = Field(..., description="Name of the tool to call")
     parameters: List[ToolParameter] = Field(..., description="Input parameters for the tool function")
     transitions: List[Transition] = Field(
         ...,
@@ -43,7 +42,6 @@ class LLMStep(BaseStep):
         description=(
             "The prompt to send to the LLM, may include references to prior step outputs. "
             "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
-            f"Valid 'output_field' values are: {', '.join(['response'] + ToolRegistry.get_all_output_keys())}"
             "Allow only unstructured text output from the LLM."
         )
     )

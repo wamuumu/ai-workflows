@@ -1,6 +1,7 @@
 import argparse
 import random
 
+from datetime import datetime
 from agents.google import GeminiAgent, GeminiModel
 from agents.cerebras import CerebrasAgent, CerebrasModel
 from features import ChatClarificationFeature, RefinementFeature, ValidationRefinementFeature
@@ -180,7 +181,7 @@ def main():
 
         # Reset metrics and random seed between runs
         MetricUtils.reset()
-        random.seed(run)
+        random.seed(int(datetime.now().strftime("%Y%m%d%H%M%S")) + run)
 
         # Configure the orchestrator with chosen strategy and tools
         orchestrator = ConfigurableOrchestrator(
@@ -207,7 +208,7 @@ def main():
             print(f"User Prompt (iteration {random_idx}): {user_prompt}\n")
 
             # Generate the workflow
-            workflow = orchestrator.generate(
+            context = orchestrator.generate(
                 user_prompt=user_prompt, 
                 response_model=workflow_model_cls,
                 debug=args.debug
@@ -215,7 +216,7 @@ def main():
 
             # If also executing, run it 
             if args.execute:
-                orchestrator.run(workflow, debug=args.debug)  
+                orchestrator.run(context.workflow_path, debug=args.debug)  
             
         elif args.execute:
             
@@ -231,12 +232,9 @@ def main():
                 workflow_path = workflow_files[0] # Pick the first one by default
             
             print(f"Workflow: {workflow_path}\n")
-                
-            # Load the workflow
-            workflow = WorkflowUtils.load_workflow(str(workflow_path), workflow_model_cls)
             
             # Execute the workflow
-            orchestrator.run(workflow, debug=args.debug)
+            orchestrator.run(workflow_path, debug=args.debug)
         else:
             raise ValueError("At least one of --generate or --execute must be specified.")
 
