@@ -7,10 +7,11 @@ class Transition(BaseModel):
     """Defines conditional branching to next step."""
     condition: str = Field(
         ..., 
-        description=(
-            "Condition to evaluate for this transition. "
-            "Use clear and simple conditions labels like 'if success', 'if failure', ' if contains XYZ', 'always', 'if yes', 'if no', etc. "
-        )
+        description="""
+            Condition to evaluate for this transition. 
+            This should be a clear, concise expression based on the current step's outputs. 
+            For example, 'if response contains "yes"' or 'if output_value > 10'. 
+        """
     )
     next_step: int = Field(..., description="Target step ID to transition to if condition is met")
 
@@ -32,26 +33,26 @@ class LLMStep(BaseStep):
     """A single llm step in a structured workflow.
     
     - Used for non-deterministic decisions (e.g., analysis, classification, branching, summarization, etc.)
-    - Output an unstructure text 'response' field that can be referenced by downstream steps.
+    - Output an unstructured text 'response' field that can be referenced by downstream steps.
     - All possible outcomes must be handled via transitions to avoid dead-ends.
     - Transitions should use clear conditions based on expected LLM outputs.
     """
     action: Literal["call_llm"] = "call_llm"
     prompt: str = Field(
         ..., 
-        description=(
-            "The prompt to send to the LLM, may include references to prior step outputs. "
-            "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
-            "Allow only unstructured text output from the LLM."
-        )
+        description="""
+            The prompt to send to the LLM, may include references to prior step outputs. 
+            To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). 
+            Return only unstructured text output from the LLM.
+        """
     )
     transitions: List[Transition] = Field(
         ...,
-        description=(
-            "List of transitions defining control flow. Must be mutually exclusive conditions covering all outcomes. ",
-            "For example, a possible scenario can contain: 'if A', 'if B', 'if C', etc. where A, B, C are distinct conditions based on LLM output."
-            "You MUST ensure that all possible conditions are covered to avoid dead-ends in the workflow."
-        )
+        description="""
+            List of transitions defining control flow. Must be mutually exclusive conditions covering all outcomes.
+            For example, a possible scenario can contain: 'if A', 'if B', 'if C', etc. where A, B, C are distinct conditions based on LLM output.
+            Ensure all possible conditions are covered to avoid dead-ends in the workflow.
+        """
     )
 
 class StructuredWorkflow(BaseModel):

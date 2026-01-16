@@ -21,7 +21,7 @@ class Tool:
         return self.function(**kwargs)
     
     @property
-    def inputs(self) -> dict:
+    def inputs(self) -> list[dict]:
         """Extract parameter information from the function signature."""
         if self._inputs is not None:
             return self._inputs
@@ -44,7 +44,7 @@ class Tool:
         return params
 
     @property
-    def outputs(self) -> dict:
+    def outputs(self) -> list[dict]:
         """Extract output information from the function return type."""
         if self._outputs is not None:
             return self._outputs

@@ -179,7 +179,7 @@ tests:
 
   - id: "T12_BOTTOM_REFINED"
     architecture: "bottom-up"
-    features: ["validation_refinement"]
+    features: ["refinement"]
     toolset: "standard"
     workflow: "structured"
     llm_model: "gpt-oss"
@@ -194,25 +194,25 @@ tests:
   # ---------------------------------------------------------
 
   - id: "T13_LLMMODEL_VARIATION"
-    architecture: "incremental"
+    architecture: "bottom-up"
     features: []
     toolset: "standard"
     workflow: "structured"
     llm_model: "gemini-2.5-flash"
     hypothesis: >
-      Testing incremental architecture on a different LLM model to
+      Testing bottom-up architecture on a different LLM model to
       validate if performance improvements are consistent. Expected:
       Comparable improvements in metrics as seen with other models,
       demonstrating robustness of the architecture choice.
   
   - id: "T14_LLMMODEL_VARIATION_2"
-    architecture: "incremental"
+    architecture: "bottom-up"
     features: []
     toolset: "standard"
     workflow: "structured"
     llm_model: "llama-3.3"
     hypothesis: >
-      Testing incremental architecture on another different LLM model to
+      Testing bottom-up architecture on another different LLM model to
       further validate consistency of performance improvements. Expected:
       Similar trends in metric improvements, confirming that the benefits
-      of the incremental approach are not model-specific.
+      of the bottom-up approach are not model-specific.

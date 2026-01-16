@@ -10,10 +10,12 @@ from pydantic import BaseModel, Field
 from collections import Counter
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from tools.registry import ToolRegistry
 from utils.logger import LoggerUtils
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) 
 LOG_DIR = os.path.join(ROOT, "metrics")
+BERT_DIR = os.path.join(ROOT, "models")
 
 class MetricSet(BaseModel):
     time_taken: float = 0
@@ -45,11 +47,19 @@ class MetricUtils:
     @classmethod
     def _init_model(cls):
         if not cls._embedding_model:
+            if not os.path.exists(BERT_DIR):
+                os.makedirs(BERT_DIR, exist_ok=True)
+            model_path = os.path.join(BERT_DIR, 'all-MiniLM-L6-v2')
             gpu_available = torch.cuda.is_available()
-            if gpu_available:
-                cls._embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cuda')
+            device = 'cuda' if gpu_available else 'cpu'
+            if not os.path.exists(model_path):
+                cls._logger.log(logging.INFO, "Downloading embedding model...")
+                cls._embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+                cls._logger.log(logging.INFO, f"Saving embedding model to: {model_path}...")
+                cls._embedding_model.save(os.path.join(BERT_DIR, 'all-MiniLM-L6-v2'))
             else:
-                cls._embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+                cls._logger.log(logging.INFO, f"Loading embedding model: {model_path} on device: {device}...")
+                cls._embedding_model = SentenceTransformer(model_path, device=device)
     
     @classmethod
     def _print_similarity_matrix(cls, matrix: np.ndarray, title: str):
@@ -300,97 +310,69 @@ class MetricUtils:
                 step.tool_name for step in workflow.steps 
                 if hasattr(step, 'action') and step.action == "call_tool"
             )
-            expected_tool_calls = reference_data.get("expected_tool_calls", {})
 
-            mode = cls._detect_mode(tool_count, expected_tool_calls)
-
-            if mode == "invalid":
-                cls._logger.log(logging.ERROR, f"Workflow W{idx + 1} has unknown or invalid mode based on tool usage. Skipping correctness evaluation.\n")
-                continue
-        
-            # Score mode-specific tool usage
             tool_scores = []
-            expected_tools_calls = expected_tool_calls.get(mode, {})
-            if expected_tools_calls:
-                for tool_name, count in tool_count.items():
-                    if tool_name not in expected_tools_calls:
-                        tool_scores.append([0.5] * count) # Penalty for unexpected tools
-                    
-                for tool, limits in expected_tools_calls.items():
-                    count = tool_count.get(tool, 0)
-                    min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
-                    tool_scores.append(max(0, cls._get_score(count, min_calls, max_calls)))
-
-            # Expected LLM calls (properly check for action attribute)
-            llm_count = sum(
-                1 for step in workflow.steps 
-                if hasattr(step, 'action') and step.action == "call_llm"
-            )
-            expected_llm_calls = reference_data.get("expected_llm_calls", {}).get(mode, {})
+            expected_tool_calls = reference_data.get("expected_tool_calls", {})
+            if expected_tool_calls: 
+                for category in expected_tool_calls:
+                    category_scores = []
+                    for tool, limits in expected_tool_calls[category].items():
+                        count = tool_count.get(tool, 0)
+                        min_calls, max_calls = limits.get("min", 0), limits.get("max", float('inf'))
+                        category_scores.append(max(0, cls._get_score(count, min_calls, max_calls)))
+                    tool_scores.append(max(category_scores) if category_scores else 0.0)
+            
+            llm_count = sum(1 for step in workflow.steps if hasattr(step, 'action') and step.action == "call_llm")
+            expected_llm_calls = reference_data.get("expected_llm_calls", {})
             if expected_llm_calls:
                 min_calls, max_calls = expected_llm_calls.get("min", 0), expected_llm_calls.get("max", float('inf'))
-                print(llm_count, min_calls, max_calls)
                 llm_score = max(0, cls._get_score(llm_count, min_calls, max_calls))
-            else:
-                llm_score = 0.0
-
-            # Expected total steps (exclude FinalSteps)
-            total_steps = sum(
-                1 for step in workflow.steps 
-                if not getattr(step, 'is_final', False)
-            )
-            expected_total_steps = reference_data.get("expected_step_count_range", {}).get(mode, {})
+            
+            total_steps = sum(1 for step in workflow.steps if not getattr(step, 'is_final', False))
+            expected_total_steps = reference_data.get("expected_step_count_range", {})
             if expected_total_steps:
                 min_steps, max_steps = expected_total_steps.get("min", 0), expected_total_steps.get("max", float('inf'))
                 step_score = max(0, cls._get_score(total_steps, min_steps, max_steps))
-            else:
-                step_score = 0.0
 
-            # Expected branch transitions
-            expected_branching = reference_data.get("expected_branch_transitions", {}).get(mode, {})
+            expected_branching = reference_data.get("expected_branch_transitions", {})
             branching_steps = cls._get_branching_steps(workflow)
             if expected_branching:
                 matched = 0
                 for _, constraint in expected_branching.items():
                     if any(cls._matches_branch_constraint(step, constraint) for step in branching_steps):
                         matched += 1
-                transition_score = matched / max(len(expected_branching), 1)
-            else:
-                transition_score = 0.0
+                transition_score = matched / max(len(expected_branching), 1)  
 
-            # Overall correctness score
-            weighted_scores = {
-                "tool": 0.40,
-                "llm": 0.15,
-                "step": 0.25,
-                "transition": 0.20
-            }
+                # Overall correctness score
+                weighted_scores = {
+                    "tool": 0.40,
+                    "llm": 0.15,
+                    "step": 0.25,
+                    "transition": 0.20
+                }
 
-            all_scores = tool_scores + [llm_score, step_score, transition_score]
-            overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
-            overall_weighted_score = (
-                np.mean(tool_scores) * weighted_scores["tool"] + 
-                llm_score * weighted_scores["llm"] +
-                step_score * weighted_scores["step"] +
-                transition_score * weighted_scores["transition"] )
+                all_scores = tool_scores + [llm_score, step_score, transition_score]
+                overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
+                overall_weighted_score = (
+                    np.mean(tool_scores) * weighted_scores["tool"] + 
+                    llm_score * weighted_scores["llm"] +
+                    step_score * weighted_scores["step"] +
+                    transition_score * weighted_scores["transition"] )
 
-            results.append({
-                "workflow_index": idx + 1,
-                "mode": mode,
-                "overall_score": overall_score,
-                "overall_weighted_score": overall_weighted_score,
-                "tool_scores": tool_scores,
-                "llm_score": llm_score,
-                "step_score": step_score,
-                "transition_score": transition_score,
-                # "goal_score": goal_score,
-                # "thoughts_score": thoughts_score
-            })
+                results.append({
+                    "workflow_index": idx + 1,
+                    "overall_score": overall_score,
+                    "overall_weighted_score": overall_weighted_score,
+                    "tool_scores": tool_scores,
+                    "llm_score": llm_score,
+                    "step_score": step_score,
+                    "transition_score": transition_score
+                })
 
         # Print summary for all workflows
         cls._logger.log(logging.INFO, "Correctness Evaluation Results:")
         for result in results:
-            cls._logger.log(logging.INFO, f"  Workflow W{result['workflow_index']} ({result['mode']}):")
+            cls._logger.log(logging.INFO, f"  Workflow W{result['workflow_index']}:")
             cls._logger.log(logging.INFO, f"    Overall correctness score: {result['overall_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Overall weighted correctness score: {result['overall_weighted_score']:.3f}")
             cls._logger.log(logging.INFO, f"    Tool call scores: {[f'{s:.3f}' for s in result['tool_scores']]}")
@@ -417,23 +399,6 @@ class MetricUtils:
         cls._logger.log(logging.INFO, f"  Average correctness score: {np.mean(overall_scores):.3f}")
         cls._logger.log(logging.INFO, f"  Min correctness score: {np.min(overall_scores):.3f}")
         cls._logger.log(logging.INFO, f"  Max correctness score: {np.max(overall_scores):.3f}")
-    
-    @classmethod
-    def _detect_mode(cls, tool_counter: Counter, expected_tool_calls: Dict[str, Any]) -> str:
-        atomic_tools = set(expected_tool_calls.get("atomic", {}).keys())
-        macro_tools = set(expected_tool_calls.get("macro", {}).keys())
-
-        atomic_used = any(tool_counter.get(tool, 0) > 0 for tool in atomic_tools)
-        macro_used = any(tool_counter.get(tool, 0) > 0 for tool in macro_tools)
-
-        if atomic_used and macro_used:
-            return "invalid"
-        if macro_used:
-            return "macro"
-        if atomic_used:
-            return "atomic"
-        
-        return "invalid"  # Uses unknown tools
     
     @classmethod
     def _get_branching_steps(cls, workflow: BaseModel) -> List[dict]:
@@ -880,11 +845,6 @@ class MetricUtils:
             for t in transitions:
                 condition = getattr(t, 'condition', '') or ''
                 
-                # Check if condition is meaningful
-                if condition.lower() in ['always', 'default', 'success', 'true', '']:
-                    transition_scores.append(0.8)  # Simple transitions are okay
-                    continue
-                
                 # Check if condition relates to step content
                 condition_relevance = 0.0
                 
@@ -896,8 +856,9 @@ class MetricUtils:
                 # For tool steps, conditions should relate to tool output
                 elif step_action == 'call_tool':
                     tool_name = getattr(step, 'tool_name', '') or ''
+                    tool_output_keys = [out.get("key") for out in ToolRegistry.get(tool_name).outputs]
                     # Basic check: condition mentions tool-related concepts
-                    if tool_name.lower() in condition.lower():
+                    if tool_name.lower() in condition.lower() or any(k and k.lower() in condition.lower() for k in tool_output_keys):
                         condition_relevance = 0.7
                     else:
                         condition_relevance = cls._string_embedding_score(condition, step_thought)

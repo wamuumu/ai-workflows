@@ -21,11 +21,11 @@ class LLMStep(BaseStep):
     action: Literal["call_llm"] = "call_llm"
     prompt: str = Field(
         ..., 
-        description=(
-            "The prompt to send to the LLM, may include references to prior step outputs. "
-            "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
-            "Allow only unstructured text output from the LLM."
-        )
+        description="""
+            The prompt to send to the LLM, may include references to prior step outputs. 
+            To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). 
+            Return only unstructured text output from the LLM.
+        """
     )
 
 class LinearWorkflow(BaseModel):

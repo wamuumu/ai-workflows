@@ -117,7 +117,8 @@ def main():
     # Core Settings
     # =========================================================
     argparser.add_argument("--runs", type=int, default=1, help="Number of sequential runs to execute (default: 1)")
-    argparser.add_argument("--it", action="store_true", help="Pick a random iteration for prompt (generate) or workflow (execute)")
+    argparser.add_argument("--it", type=int, default=1, help="Pick a specific iteration for prompt (generate) or workflow (execute)")
+    argparser.add_argument("--random-it", action="store_true", help="Pick a random iteration for prompt (generate) or workflow (execute)")
 
     # =========================================================
     # Generation Settings
@@ -196,11 +197,11 @@ def main():
                 
             prompts = PromptUtils.get_user_prompts(args.prompt)
             
-            if args.it:
+            if args.random_it:
                 random_idx = random.choice([i for i in range(1, len(prompts) + 1) if i not in iterations_idx])
                 iterations_idx.append(random_idx)
             else:
-                random_idx = 1  # Default to the first prompt
+                random_idx = args.it  # Use the specified iteration (default: 1)
 
             # Pick the random prompt for this iteration
             user_prompt = prompts.get(str(random_idx))
@@ -224,7 +225,7 @@ def main():
             
             if args.workflow_path:
                 workflow_path = args.workflow_path
-            elif args.it:
+            elif args.random_it:
                 random_idx = random.choice([i for i in range(0, len(workflow_files)) if i not in iterations_idx])
                 iterations_idx.append(random_idx)
                 workflow_path = workflow_files[random_idx]

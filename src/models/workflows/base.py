@@ -10,10 +10,10 @@ class ToolParameter(BaseModel):
     key: str = Field(..., description="Parameter key matching selected tool input schema")
     value: Union[str, int, float, bool] = Field(
         ..., 
-        description=(
-            "Literal value or reference to another step's output. "
-            "To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). "
-        )
+        description="""
+            Literal value or reference to another step's output. 
+            To reference another step's output, use the format: {id.output_field} (e.g. {1.response}, {2.output}, etc.). 
+        """
     )
 
 class BaseStep(BaseModel):
@@ -28,11 +28,11 @@ class BaseStep(BaseModel):
     )
     thoughts: str = Field(
         ..., 
-        description=(
-            "Extensive reasoning about the step's purpose and approach. "
-            "This should include the rationale for tool selection and parameter choices. "
-            "Be as detailed as possible to ensure clarity in the workflow's logic."
-        )
+        description="""
+            Extensive reasoning about the step's purpose and approach. 
+            This should include the rationale for tool selection and parameter choices. 
+            Be as detailed as possible to ensure clarity in the workflow's logic.
+        """
     )
 
 class FinalStep(BaseStep):

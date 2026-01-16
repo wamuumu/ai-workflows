@@ -24,12 +24,12 @@ class Question(BaseModel):
     """
     message: str = Field(
         ...,
-        description=(
-            "The clarification question to ask the user. Must be a single, clear, concise question "
-            "requesting one specific piece of missing or ambiguous information needed for workflow generation. "
-            "For the first message only, start with one short paragraph explaining the clarification approach, "
-            "then ask the first question if needed."
-        )
+        description="""
+            The clarification question to ask the user. Must be a single, clear, concise question 
+            requesting one specific piece of missing or ambiguous information needed for workflow generation. 
+            For the first message only, start with one short paragraph explaining the clarification approach, 
+            then ask the first question if needed.
+        """
     )
 
 class EndClarifications(BaseModel):
@@ -50,8 +50,8 @@ class MessageResponse(BaseModel):
     """
     result: Union[Question, EndClarifications] = Field(
         ...,
-        description=(
-            "The clarification result: either a Question object (if more information needed) "
-            "or EndClarifications object (if clarification is complete and workflow generation can proceed)."
-        )
+        description="""
+            The clarification result: either a Question object (if more information needed) 
+            or EndClarifications object (if clarification is complete and workflow generation can proceed).
+        """
     )

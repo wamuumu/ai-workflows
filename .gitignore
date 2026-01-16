@@ -12,4 +12,5 @@ __pycache__/
 data/
 logs/
 metrics/
-documentation/
+documentation
+/models/

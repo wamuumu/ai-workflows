@@ -12,20 +12,20 @@ class Parameter(BaseModel):
     key: str = Field(..., description="The exact parameter key as defined in the original workflow step")
     value: Union[str, int, float, bool] = Field(
         ..., 
-        description=(
-            "The fully resolved parameter value with all placeholders replaced from state. "
-            "Must be the exact value from a completed step's output, not an inferred or placeholder value."
-        )
+        description="""
+            The fully resolved parameter value with all placeholders replaced from state. "
+            Must be the exact value from a completed step's output, not an inferred or placeholder value."
+        """
     )
 
 class BaseStep(BaseModel):
     """Base class for a workflow step."""
     id: str = Field(
         ..., 
-        description=(
-            "Unique identifier for the step, matching the step ID from the original workflow. "
-            "Must correspond to the current step being executed in sequence."
-        )
+        description="""
+            Unique identifier for the step, matching the step ID from the original workflow. 
+            Must correspond to the current step being executed in sequence.
+        """
     )
 
 class ToolStep(BaseStep):
@@ -37,11 +37,11 @@ class ToolStep(BaseStep):
     )
     parameters: List[Parameter] = Field(
         ..., 
-        description=(
-            "Input parameters for the tool function with ALL placeholders resolved. "
-            "Each parameter must use exact values from the current state. "
-            "Do NOT include unresolved placeholders or inferred values."
-        )
+        description="""
+            Input parameters for the tool function with ALL placeholders resolved. 
+            Each parameter must use exact values from the current state. 
+            Do NOT include unresolved placeholders or inferred values.
+        """
     )
 
 class LLMStep(BaseStep):
@@ -49,10 +49,10 @@ class LLMStep(BaseStep):
     action: Literal["call_llm"] = "call_llm"
     response: str = Field(
         ..., 
-        description=(
-            "The complete LLM response generated from the resolved prompt. "
-            "This response will be stored in state and can be referenced by downstream steps."
-        )
+        description="""
+            The complete LLM response generated from the resolved prompt. 
+            This response will be stored in state and can be referenced by downstream steps.
+        """
     )
 
 class FinalStep(BaseStep):
@@ -63,9 +63,9 @@ class ExecutionResponse(BaseModel):
     """An execution response representing a single step in the workflow execution."""
     step: Union[ToolStep, LLMStep, FinalStep] = Field(
         ..., 
-        description=(
-            "The currently executed step details. "
-            "Must be one of: ToolStep (requests external tool call), "
-            "LLMStep (contains LLM-generated response), or FinalStep (marks workflow completion)."
-        )
+        description="""
+            The currently executed step details. 
+            Must be one of: ToolStep (requests external tool call), 
+            LLMStep (contains LLM-generated response), or FinalStep (marks workflow completion).
+        """
     )

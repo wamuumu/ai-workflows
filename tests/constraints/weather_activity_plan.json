@@ -1,37 +1,26 @@
 {
   "expected_tool_calls": {
-    "atomic": {
+    "weather": {
       "current_weather": {"min": 1, "max": 1},
-      "get_indoor_activities": {"min": 1, "max": 1},
-      "get_outdoor_activities": {"min": 1, "max": 1},
-      "write_file": {"min": 1, "max": 2},
-      "send_email": {"min": 1, "max": 2}
+      "plan_trip": {"min": 1, "max": 1}
     },
-    "macro": {
+    "activities": {
       "plan_trip": {"min": 1, "max": 1},
+      "get_indoor_activities": {"min": 1, "max": 1},
+      "get_outdoor_activities": {"min": 1, "max": 1}
+    },
+    "write": {
+      "write_file": {"min": 1, "max": 2},
+      "send_email": {"min": 1, "max": 2},
       "write": {"min": 2, "max": 4}
     }
   },
-  "expected_llm_calls": {
-    "atomic": {"min": 3, "max": 5},
-    "macro": {"min": 1, "max": 3}
-  },
+  "expected_llm_calls": {"min": 2, "max": 4},
   "expected_branch_transitions": {
-    "atomic": {
-      "weather_check": {
-          "keywords": ["rain", "rainy", "forecast", "forecasts", "determine", "respond", "decide"],
-          "transitions": 2
-      }
-    },
-    "macro": {
-      "activity_check": {
-          "keywords": ["rain", "rainy", "forecast", "forecasts", "determine", "respond", "decide", "indoor", "outdoor", "activities"],
-          "transitions": 2
-      }
+    "weather_activities": {
+        "keywords": ["rain", "rainy", "forecast", "forecasts", "determine", "respond", "decide", "indoor", "outdoor", "activities"],
+        "transitions": 2
     }
   },
-  "expected_step_count_range": {
-    "atomic": {"min": 8, "max": 12},
-    "macro": {"min": 6, "max": 10}
-  }
+  "expected_step_count_range": {"min": 8, "max": 12}
 }
