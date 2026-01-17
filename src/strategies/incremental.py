@@ -36,10 +36,11 @@ class IncrementalStrategy(StrategyBase):
             action = getattr(step, 'action', 'unknown')
             if action == "call_tool":
                 tool_name = getattr(step, 'tool_name', 'unknown')
-                summary_parts.append(f"  {step_id}: call_tool({tool_name})")
+                outputs = ", ".join([key for key in ToolRegistry.get(tool_name).outputs])
+                summary_parts.append(f"  {step_id}: call_tool({tool_name}) producing outputs: '{outputs}'")
             elif action == "call_llm":
                 prompt_preview = getattr(step, 'prompt', '')[:50] + "..."
-                summary_parts.append(f"  {step_id}: call_llm(\"{prompt_preview}\")")
+                summary_parts.append(f"  {step_id}: call_llm(\"{prompt_preview}\") producing output: 'response'")
             else:
                 summary_parts.append(f"  {step_id}: final_step")
         
