@@ -34,6 +34,7 @@ Build an executable workflow by generating **1 to 3 steps per response**. At eac
 ## Branching (if applicable)
 - Each branch continues **independently** after a split
 - **NEVER merge branches back together**
+- **MUST NOT BRANCH** if action is `call_tool`
 
 ## Quality Guidelines
 - Include only necessary steps

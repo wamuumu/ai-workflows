@@ -24,6 +24,7 @@ Generate a complete, executable workflow that **strictly adheres** to the provid
 ## Branching (if applicable)
 - Each branch continues **independently** after a split
 - **NEVER merge branches back together**
+- **MUST NOT BRANCH** if action is `call_tool`
 
 ## Quality Guidelines
 - Include only necessary steps
