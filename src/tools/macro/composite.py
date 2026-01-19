@@ -134,6 +134,9 @@ def write(
     from tools.documents import write_file
     from tools.communication import send_email
 
+    file_out = None
+    email_out = None
+    
     if not file_path and not recipient:
         return {"error": "At least one of file_path or recipient must be provided."}
     elif not content:

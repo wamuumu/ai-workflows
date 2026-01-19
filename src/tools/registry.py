@@ -83,6 +83,12 @@ class ToolRegistry:
             for output in tool.outputs:
                 output_keys.add(output["key"])
         return list(output_keys)
+
+    @classmethod
+    def exists(cls, name: str) -> bool:
+        """Check if a tool is registered."""
+        cls.__ensure_initialized()
+        return name in cls._tools
     
     @classmethod
     def to_prompt_format(cls, tools: List[Tool] = None, group_by_category: bool = True) -> str:

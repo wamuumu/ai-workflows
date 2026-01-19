@@ -175,9 +175,12 @@ class WorkflowUtils:
                 transitions = step.get("transitions", [])
                 if transitions:
                     for transition in transitions:
-                        net.add_edge(step_id, transition.get("next_step"), label=transition.get("condition"))
+                        next = transition.get("next_step")
+                        if next in net.node_ids:
+                            net.add_edge(step_id, transition.get("next_step"), label=transition.get("condition"))
                 else:
-                    net.add_edge(step_id, step_id + 1)
+                    if step_id + 1 in net.node_ids:
+                        net.add_edge(step_id, step_id + 1)
     
         # Create output directory if not exists
         cls._check_folder(VISUALIZATIONS)

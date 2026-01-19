@@ -13,10 +13,10 @@ class IncrementalStrategy(StrategyBase):
     - Sliding window context: Only keeps last K steps in full detail, summarizes older steps
     """
 
-    def __init__(self, max_steps: int = 20, context_window_size: int = 6):
+    def __init__(self, max_steps: int = 20, context_window_size: int = 3):
         super().__init__()
         self.max_steps = max_steps
-        self.context_window_size = context_window_size  # Number of recent steps to keep in full detail (2 batches)
+        self.context_window_size = context_window_size  # Number of recent steps to keep in full detail (1 batch)
 
     def _summarize_steps(self, steps: List) -> str:
         """Summarize older steps to reduce context size while preserving key information."""
@@ -34,15 +34,34 @@ class IncrementalStrategy(StrategyBase):
         for i, step in enumerate(older_steps):
             step_id = getattr(step, 'id', f'step_{i+1}')
             action = getattr(step, 'action', 'unknown')
+            transitions = getattr(step, 'transitions', [])
             if action == "call_tool":
                 tool_name = getattr(step, 'tool_name', 'unknown')
-                outputs = ", ".join([key for key in ToolRegistry.get(tool_name).outputs])
-                summary_parts.append(f"  {step_id}: call_tool({tool_name}) producing outputs: '{outputs}'")
+                if not ToolRegistry.exists(tool_name):
+                    summary_parts.append(f"  Step {step_id}: Broken step! DON'T USE THIS!\n")
+                    continue
+                outputs = ""
+                for out in ToolRegistry.get(tool_name).outputs:
+                    outputs += f"{out.get("key")} ({out.get("type")}), "
+                outputs = outputs.rstrip(", ")
+                next_steps = ""
+                for transition in transitions:
+                    next_steps += f"{getattr(transition, 'next_step', 'unknown')} ({getattr(transition, 'condition', 'unknown')}), "
+                next_steps = next_steps.rstrip(", ")
+                summary_parts.append(f"  Step {step_id}: call_tool({tool_name}) with outputs: '{outputs}'")
+                if next_steps:
+                    summary_parts.append(f"  Step {step_id} transitions to steps: {next_steps}\n")
             elif action == "call_llm":
                 prompt_preview = getattr(step, 'prompt', '')[:50] + "..."
-                summary_parts.append(f"  {step_id}: call_llm(\"{prompt_preview}\") producing output: 'response'")
+                next_steps = ""
+                for transition in transitions:
+                    next_steps += f"{getattr(transition, 'next_step', 'unknown')} ({getattr(transition, 'condition', 'unknown')}), "
+                next_steps = next_steps.rstrip(", ")
+                summary_parts.append(f"  Step {step_id}: call_llm(\"{prompt_preview}\") with output: 'response'")
+                if next_steps:
+                    summary_parts.append(f"  Step {step_id} transitions to steps: {next_steps}\n")
             else:
-                summary_parts.append(f"  {step_id}: final_step")
+                summary_parts.append(f"  Step {step_id}: final_step")
         
         summary_parts.append("\n[RECENT STEPS - FULL DETAIL]")
         for step in recent_steps:
