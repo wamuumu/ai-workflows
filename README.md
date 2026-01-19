@@ -13,13 +13,13 @@
 
 ## 📖 Overview
 
-AI-Workflows is a framework for generating and evaluating AI-powered workflows using different generation strategies. It supports multiple workflow generation approaches, various LLM providers, and comprehensive evaluation metrics for comparing workflow quality.
+AI-Workflows is a framework for generating and evaluating AI-powered workflows using different generation strategies. It supports multiple workflow generation approaches, various LLM providers and comprehensive evaluation metrics for comparing workflow quality.
 
 **Key Features:**
-- Multiple workflow generation strategies (monolithic, incremental, hierarchical)
+- Multiple workflow generation strategies (monolithic, incremental, bottom-up)
 - Support for Google Gemini and Cerebras LLM models
 - Extensible tool registry with 20+ pre-built tools
-- Workflow enhancement features (clarification, refinement)
+- Workflow enhancement features (chat clarification, refinement)
 - Similarity and correctness evaluation metrics
 
 ---
@@ -71,10 +71,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Create a `.env` file with your API keys:
-```
-GOOGLE_API_KEY=your_key_here
-CEREBRAS_API_KEY=your_key_here
+4. Copy the example environment file and set your API keys:
+```bash
+cp .env.example .env
+# Edit .env to add your API keys
 ```
 
 ---
@@ -85,7 +85,7 @@ CEREBRAS_API_KEY=your_key_here
 ai-workflows/
 ├── src/
 │   ├── agents/              # LLM agent implementations (Gemini, Cerebras)
-│   ├── features/            # Enhancement features (clarification, refinement)
+│   ├── features/            # Enhancement features (chat, refinement)
 │   ├── models/              # Workflow and response schemas
 │   ├── orchestrators/       # Workflow generation and execution
 │   ├── prompts/             # System and user prompts
@@ -135,19 +135,29 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 
 | Flag | Description |
 |------|-------------|
-| `--strategy` | Generation strategy: `monolithic`, `incremental`, `bottomup` |
-| `--response-model` | Workflow format: `linear`, `structured` |
-| `--generator` | Generator agent (see models below) |
-| `--reviewer` | Reviewer agent |
-| `--executor` | Executor agent |
-| `--chat-clarification` | Enable clarification feature |
+| `--generate` | Generate a workflow from the given prompt |
+| `--execute` | Execute the generated or loaded workflow |
+| `--workflow-path` | Path to a saved workflow JSON to load when not generating |
+| `--prompt` | Prompt name (default: `weather_activity_plan`) |
+| `--strategy` | Generation strategy: `monolithic`, `incremental`, `bottomup` (default: `monolithic`) |
+| `--workflow-model` | Workflow format: `linear`, `structured` (default: `structured`) |
+| `--runs` | Number of sequential runs to execute (default: `1`) |
+| `--it` | Specific iteration index for prompt/workflow (default: `1`) |
+| `--random-it` | Pick a random iteration for prompt/workflow |
+| `--chat` | Enable chat clarification feature |
 | `--refinement` | Enable refinement feature |
 | `--validation-refinement` | Enable validation refinement |
-| `--tools` | Specific tools to enable |
+| `--select-tools` | Space-separated tool names to enable (default: `all tools`) |
+| `--atomic-tools-only` | Enable only atomic tools (default: `false`) |
+| `--macro-tools-only` | Enable only macro tools (default: `false`) |
 | `--no-tools` | Disable all tools |
-| `--prompt` | Prompt name (default: `weather_activity_plan`) |
-| `--runs` | Number of runs (default: 1) |
-| `--it` | Pick a random iteration for prompt (generate) or workflow (execute) |
+| `--generator` | Generator agent (`provider:model`) |
+| `--reviewer` | Reviewer agent (`provider:model`) |
+| `--planner` | Planner agent (`provider:model`) |
+| `--chatter` | Chatter agent (`provider:model`) |
+| `--refiner` | Refiner agent (`provider:model`) |
+| `--executor` | Executor agent (`provider:model`) |
+| `--debug` | Enable debug logging |
 
 #### evaluate.py
 
@@ -157,6 +167,8 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 | `--workflow-similarity` | Compare workflow structures |
 | `--execution-similarity` | Compare execution traces |
 | `--correctness-scores` | Validate against constraints |
+| `--intent-resolution` | Evaluate intent resolution |
+| `--reasoning-coherence` | Evaluate reasoning coherence |
 | `--all` | Run all metrics |
 
 ## 🏗️ Architecture
