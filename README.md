@@ -37,9 +37,9 @@ AI-Workflows is a framework for generating and evaluating AI-powered workflows u
     * [Generate and Execute](#generate-and-execute)
     * [Evaluate Workflows](#evaluate-workflows)
 * [Expected Output](#-expected-output)
-* [CLI Options](#-cli-options)
+* [CLI Options](#️-cli-options)
 * [Evaluation](#-evaluation)
-* [Known Limitations](#-known-limitations)
+* [Known Limitations](#️-known-limitations)
 * [License](#-license)
 
 ---
@@ -145,7 +145,7 @@ After running the evaluation, you should see:
 - Evaluation formatted metrics in `metrics/`
 - Execution logs in `logs/`
 
-## 🛠️ CLI Options
+## ⚙️ CLI Options
 
 ### main.py
 
