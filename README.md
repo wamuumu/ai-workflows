@@ -32,13 +32,14 @@ AI-Workflows is a framework for generating and evaluating AI-powered workflows u
     * [Installation](#installation)
 * [Project Structure](#-project-structure)
 * [Quick Start](#-quick-start)
-    * [CLI Options](#cli-options)
-* [Architecture](#-architecture)
-    * [Generation Strategies](#generation-strategies)
-    * [Supported Models](#supported-models)
-    * [Tool Categories](#tool-categories)
-    * [Workflow Models](#workflow-models)
+    * [Generate a Workflow](#generate-a-workflow)
+    * [Execute a Workflow](#execute-a-workflow)
+    * [Generate and Execute](#generate-and-execute)
+    * [Evaluate Workflows](#evaluate-workflows)
+* [Expected Output](#-expected-output)
+* [CLI Options](#-cli-options)
 * [Evaluation](#-evaluation)
+* [Known Limitations](#-known-limitations)
 * [License](#-license)
 
 ---
@@ -134,9 +135,19 @@ python main.py --generate --execute --prompt weather_activity_plan
 python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.json
 ```
 
-### CLI Options
+---
 
-#### main.py
+## 📈 Expected Output
+
+After running the evaluation, you should see:
+- Workflow JSON files in `data/workflows/`
+- HTML visualizations in `data/visualizations/`
+- Evaluation formatted metrics in `metrics/`
+- Execution logs in `logs/`
+
+## 🛠️ CLI Options
+
+### main.py
 
 | Flag | Description |
 |------|-------------|
@@ -164,7 +175,14 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 | `--executor` | Executor agent (`provider:model`) |
 | `--debug` | Enable debug logging |
 
-#### evaluate.py
+####  _Supported Models_
+
+| Provider | Models |
+|----------|--------|
+| Google Gemini | `gemini:2.5-flash`, `gemini:2.5-flash-lite` |
+| Cerebras | `cerebras:gpt-oss`, `cerebras:llama-3.3`, `cerebras:qwen-3` |
+
+### evaluate.py
 
 | Flag | Description |
 |------|-------------|
@@ -175,34 +193,6 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 | `--intent-resolution` | Evaluate intent resolution |
 | `--reasoning-coherence` | Evaluate reasoning coherence |
 | `--all` | Run all metrics |
-
----
-
-## 🏗️ Architecture
-
-### Generation Strategies
-
-| Strategy | Description |
-|----------|-------------|
-| **Monolithic** | Single-shot complete workflow generation |
-| **Incremental** | Step-by-step generation with sliding window context |
-| **Bottom-Up** | Hierarchical: tool identification → ordering → control flow → assembly |
-
-### Supported Models
-
-| Provider | Models |
-|----------|--------|
-| Google Gemini | `gemini:2.5-flash`, `gemini:2.5-flash-lite` |
-| Cerebras | `cerebras:gpt-oss`, `cerebras:llama-3.3`, `cerebras:qwen-3` |
-
-### Tool Categories
-
-Communication, Weather, Travel, Finance, Documents, Text, Math, Web, News, ML
-
-### Workflow Models
-
-- **LinearWorkflow:** Sequential list of steps
-- **StructuredWorkflow:** Directed graph with dependencies and conditional execution
 
 ---
 
@@ -221,6 +211,12 @@ Results are saved at runtime to the `metrics/` directory with timestamps and det
 To see all evaluation results, check the following spreadsheet:
 
 [![google-sheet-logo]](https://docs.google.com/spreadsheets/d/1NI1UVD8nQ_wCcqrUvtZBqOlGUgmrKu4HsEMqdm3orDs/edit?usp=sharing)
+
+## ⚠️ Known Limitations
+
+- API rate limits may affect performance with multiple runs
+- GPU required for optimal embedding model performance
+- Some tools require internet connectivity
 
 ---
 
