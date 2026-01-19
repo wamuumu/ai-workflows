@@ -180,7 +180,7 @@ After running the evaluation, you should see:
 | Provider | Models |
 |----------|--------|
 | Google Gemini | `gemini:2.5-flash`, `gemini:2.5-flash-lite` |
-| Cerebras | `cerebras:gpt-oss`, `cerebras:llama-3.3`, `cerebras:qwen-3` |
+| Cerebras | `cerebras:gpt-oss`, `cerebras:llama-3.3` |
 
 ### evaluate.py
 

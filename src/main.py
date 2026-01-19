@@ -23,7 +23,6 @@ AGENT_MODELS = {
     # Cerebras models
     "cerebras:gpt-oss": (CerebrasAgent, CerebrasModel.GPT_OSS),
     "cerebras:llama-3.3": (CerebrasAgent, CerebrasModel.LLAMA_3_3),
-    "cerebras:qwen-3": (CerebrasAgent, CerebrasModel.QWEN_3),
     # Gemini models
     "gemini:2.5-flash": (GeminiAgent, GeminiModel.GEMINI_2_5_FLASH),
     "gemini:2.5-flash-lite": (GeminiAgent, GeminiModel.GEMINI_2_5_FLASH_LITE),
