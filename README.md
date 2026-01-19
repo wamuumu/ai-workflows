@@ -13,7 +13,7 @@
 
 ## 📖 Overview
 
-AI-Workflows is a framework for generating and evaluating AI-powered workflows using different generation strategies. It supports multiple workflow generation approaches, various LLM providers and comprehensive evaluation metrics for comparing workflow quality.
+AI-Workflows is a framework for generating and evaluating AI-powered workflows using different generation strategies. It supports multiple workflow generation approaches, various LLM providers, and comprehensive evaluation metrics for comparing workflow quality.
 
 **Key Features:**
 - Multiple workflow generation strategies (monolithic, incremental, bottom-up)
@@ -71,10 +71,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Copy the example environment file and set your API keys:
+4. Set up your API keys:
 ```bash
 cp .env.example .env
-# Edit .env to add your API keys
+# Edit .env and add your API keys
 ```
 
 ---
@@ -95,7 +95,7 @@ ai-workflows/
 │   ├── main.py              # Main entry point
 │   └── evaluate.py          # Evaluation script
 ├── tests/                   # Evaluation constraints
-├── data/                    # Generated workflows and visualizations
+├── data/                    # Generated workflows, visualizations and runtime data
 ├── logs/                    # Execution logs
 └── metrics/                 # Evaluation results
 ```
@@ -104,10 +104,15 @@ ai-workflows/
 
 ## 🎯 Quick Start
 
-### Generate a Workflow
+All commands should be run from the `src/` directory:
 
 ```bash
 cd src
+```
+
+### Generate a Workflow
+
+```bash
 python main.py --generate --prompt weather_activity_plan
 ```
 
@@ -147,7 +152,7 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 | `--chat` | Enable chat clarification feature |
 | `--refinement` | Enable refinement feature |
 | `--validation-refinement` | Enable validation refinement |
-| `--select-tools` | Space-separated tool names to enable (default: `all tools`) |
+| `--select-tools` | Space-separated tool names to enable (default: all tools) |
 | `--atomic-tools-only` | Enable only atomic tools (default: `false`) |
 | `--macro-tools-only` | Enable only macro tools (default: `false`) |
 | `--no-tools` | Disable all tools |
@@ -170,6 +175,8 @@ python evaluate.py --all --reference ../tests/constraints/weather_activity_plan.
 | `--intent-resolution` | Evaluate intent resolution |
 | `--reasoning-coherence` | Evaluate reasoning coherence |
 | `--all` | Run all metrics |
+
+---
 
 ## 🏗️ Architecture
 
@@ -201,15 +208,17 @@ Communication, Weather, Travel, Finance, Documents, Text, Math, Web, News, ML
 
 ## 📊 Evaluation
 
-The framework provides three evaluation metrics:
+The framework provides five evaluation metrics:
 
 1. **Workflow Similarity:** Compares generated workflows structurally using embedding-based similarity
 2. **Execution Similarity:** Measures similarity between workflow execution traces
 3. **Correctness Scores:** Validates workflows against reference constraints (required steps, tool usage, dependencies)
+4. **Intent Resolution:** Measures how well the agent interprets underlying goals vs literal prompts
+5. **Reasoning Coherence:** Evaluates logical structure and consistency of reasoning chains
 
 Results are saved at runtime to the `metrics/` directory with timestamps and detailed breakdowns.
 
-To see all the evaluation done so far, check the following google sheet:
+To see all evaluation results, check the following spreadsheet:
 
 [![google-sheet-logo]](https://docs.google.com/spreadsheets/d/1NI1UVD8nQ_wCcqrUvtZBqOlGUgmrKu4HsEMqdm3orDs/edit?usp=sharing)
 
