@@ -1,16 +1,23 @@
-google-genai==1.52.0
-cerebras_cloud_sdk==1.59.0
-pyvis==0.3.2
-ddgs==9.9.3
-dotenv==0.9.9
-geopy==2.4.1
-translate==3.8.0
-textblob==0.19.0
-yfinance==0.2.66
-feedparser==6.0.12
-scikit-learn==1.7.2
-bs4==0.0.2
-sentence-transformers==5.2.0
-torch==2.7.1 --index-url https://download.pytorch.org/whl/cu118
-torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu118
-torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
+# Core dependencies
+google-genai>=1.52.0            # Google Gemini API
+cerebras_cloud_sdk>=1.59.0      # Cerebras Cloud SDK
+python-dotenv>=1.0.0
+
+# Data Models
+pydantic>=2.0.0
+
+# Workflow Visualization
+pyvis>=0.3.2                    # Network visualization library
+
+# Tools Utilities
+ddgs>=9.9.3                     # DuckDuckGo Search API
+geopy>=2.4.1                    # Geocoding library
+translate>=3.8.0                # Language translation library
+textblob>=0.19.0                # Text processing library
+yfinance>=0.2.66                # Yahoo Finance API 
+feedparser>=6.0.12              # RSS feed parser
+scikit-learn>=1.7.2             # Machine learning library
+bs4>=0.0.2                      # Beautiful Soup for HTML parsing
+
+# Metric Utilities - embeddings
+sentence-transformers>=5.2.0    # SBERT for sentence embeddings

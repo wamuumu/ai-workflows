@@ -3,9 +3,8 @@ import re
 import json
 import numpy as np
 import logging
-import torch
 
-from typing import List, Dict, Any, Tuple, Optional, Union
+from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 from collections import Counter
 from sentence_transformers import SentenceTransformer
@@ -50,16 +49,14 @@ class MetricUtils:
             if not os.path.exists(BERT_DIR):
                 os.makedirs(BERT_DIR, exist_ok=True)
             model_path = os.path.join(BERT_DIR, 'all-MiniLM-L6-v2')
-            gpu_available = torch.cuda.is_available()
-            device = 'cuda' if gpu_available else 'cpu'
             if not os.path.exists(model_path):
                 cls._logger.log(logging.INFO, "Downloading embedding model...")
-                cls._embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+                cls._embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device="cpu")
                 cls._logger.log(logging.INFO, f"Saving embedding model to: {model_path}...")
                 cls._embedding_model.save(os.path.join(BERT_DIR, 'all-MiniLM-L6-v2'))
             else:
-                cls._logger.log(logging.INFO, f"Loading embedding model: {model_path} on device: {device}...")
-                cls._embedding_model = SentenceTransformer(model_path, device=device)
+                cls._logger.log(logging.INFO, f"Loading embedding model: {model_path}...")
+                cls._embedding_model = SentenceTransformer(model_path, device="cpu")
     
     @classmethod
     def _print_similarity_matrix(cls, matrix: np.ndarray, title: str):
