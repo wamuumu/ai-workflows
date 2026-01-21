@@ -20,4 +20,5 @@ scikit-learn>=1.7.2             # Machine learning library
 bs4>=0.0.2                      # Beautiful Soup for HTML parsing
 
 # Metric Utilities - embeddings
+numpy<2
 sentence-transformers>=5.2.0    # SBERT for sentence embeddings
