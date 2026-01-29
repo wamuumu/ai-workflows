@@ -1,3 +1,39 @@
+"""
+Metric Utilities Module
+=======================
+
+This module provides comprehensive evaluation and efficiency metrics for the
+AI Workflows framework. It supports both quantitative performance tracking
+and qualitative workflow assessment.
+
+Evaluation Metrics (Sections 1-6):
+    1. Similarity Scores: Pairwise workflow comparison using step/transition
+       alignment with semantic embeddings for text comparison.
+    2. Correctness Scores: Validation against reference specifications including
+       expected tool calls, LLM calls, step counts, and branching patterns.
+    3. Execution Similarity: Comparison of actual execution outputs across
+       multiple workflow runs.
+    4. Efficiency Metrics: Time, API call count, and token usage tracking
+       for generation, features, and execution phases.
+    5. Reasoning Coherence: Analysis of logical flow including thought
+       continuity, transition validity, and action-thought alignment.
+    6. Intent Resolution: Measurement of goal alignment and over-interpretation
+       detection.
+
+Embedding Model:
+    Uses SentenceTransformer (all-MiniLM-L6-v2) for semantic text comparisons.
+    Model is downloaded on first use and cached locally.
+
+Caching:
+    - Embeddings are cached per string to avoid recomputation
+    - Similarity scores are cached bidirectionally
+    - Model is lazily initialized on first semantic comparison
+
+Output:
+    Results are logged to metrics/ directory in both human-readable
+    and machine-parseable formats.
+"""
+
 import os
 import re
 import json
@@ -12,21 +48,61 @@ from sklearn.metrics.pairwise import cosine_similarity
 from tools.registry import ToolRegistry
 from utils.logger import LoggerUtils
 
+# Compute project root and output directories
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) 
 LOG_DIR = os.path.join(ROOT, "metrics")
 BERT_DIR = os.path.join(ROOT, "models")
 
+
 class MetricSet(BaseModel):
+    """
+    Container for efficiency metrics of a single operation category.
+    
+    Attributes:
+        time_taken: Total wall-clock time in seconds.
+        number_of_calls: Count of LLM API invocations.
+        total_tokens: Sum of input and output tokens consumed.
+    """
     time_taken: float = 0
     number_of_calls: int = 0 
-    total_tokens: int = 0 # input + output tokens
+    total_tokens: int = 0  # input + output tokens
+
 
 class MetricSchema(BaseModel):
+    """
+    Schema organizing efficiency metrics by workflow phase.
+    
+    Attributes:
+        generation: Metrics for workflow generation phase.
+        features: Dict of metrics per feature (keyed by feature name).
+        execution: Metrics for workflow execution phase.
+    """
     generation: MetricSet = Field(default_factory=MetricSet)
     features: Dict[str, MetricSet] = Field(default_factory=dict)
     execution: MetricSet = Field(default_factory=MetricSet)
 
+
 class MetricUtils:
+    """
+    Central utility class for workflow evaluation and efficiency tracking.
+    
+    Provides static methods for:
+        - Pairwise workflow similarity computation
+        - Correctness evaluation against specifications
+        - Execution result comparison
+        - Efficiency metric tracking and display
+        - Reasoning coherence analysis
+        - Intent resolution scoring
+    
+    Class Attributes:
+        _metrics: Current session's efficiency metrics.
+        _has_finished: Flag indicating execution completion.
+        _logger: Logger for metric output.
+        _formatted_logger: Logger for machine-parseable output.
+        _embeddings: Cache of computed text embeddings.
+        _similarities: Cache of computed similarity scores.
+        _embedding_model: Lazy-loaded SentenceTransformer instance.
+    """
     
     _metrics: MetricSchema = MetricSchema()
     _has_finished: bool = False
@@ -45,6 +121,12 @@ class MetricUtils:
 
     @classmethod
     def _init_model(cls):
+        """
+        Initialize the sentence embedding model.
+        
+        Downloads the model on first use if not cached locally.
+        Uses all-MiniLM-L6-v2 for efficient semantic similarity.
+        """
         if not cls._embedding_model:
             if not os.path.exists(BERT_DIR):
                 os.makedirs(BERT_DIR, exist_ok=True)
@@ -60,6 +142,13 @@ class MetricUtils:
     
     @classmethod
     def _print_similarity_matrix(cls, matrix: np.ndarray, title: str):
+        """
+        Log a formatted similarity matrix.
+        
+        Args:
+            matrix: Square numpy array of similarity scores.
+            title: Header text for the matrix display.
+        """
         n = matrix.shape[0]
         cls._logger.log(logging.INFO, title)
         header = "    " + "".join([f"W{i+1} ".ljust(6) for i in range(n)])
@@ -70,6 +159,19 @@ class MetricUtils:
     
     @classmethod
     def _string_embedding_score(cls, a: str, b: str) -> float:
+        """
+        Compute semantic similarity between two strings using embeddings.
+        
+        Uses cosine similarity of sentence embeddings. Results are cached
+        bidirectionally to avoid redundant computation.
+        
+        Args:
+            a: First string for comparison.
+            b: Second string for comparison.
+            
+        Returns:
+            Similarity score in range [0, 1].
+        """
 
         if a == b:
             return 1.0
@@ -110,7 +212,19 @@ class MetricUtils:
     @classmethod
     def similarity_scores(cls, workflows: List[BaseModel]) -> None:
         """
-        Compute pairwise similarity matrix between multiple workflows.
+        Compute and display pairwise similarity matrix between workflows.
+        
+        Uses step alignment and transition comparison to measure structural
+        similarity. Text fields are compared using semantic embeddings.
+        
+        Scoring Formula:
+            similarity = 0.7 * step_score + 0.3 * transition_score
+        
+        Args:
+            workflows: List of workflow models to compare.
+            
+        Side Effects:
+            Logs similarity matrix and statistics to metrics logger.
         """
         n = len(workflows)
         matrix = np.zeros((n, n))
@@ -145,6 +259,16 @@ class MetricUtils:
 
     @classmethod
     def _workflow_similarity(cls, a: BaseModel, b: BaseModel) -> float:
+        """
+        Compute overall similarity between two workflows.
+        
+        Args:
+            a: First workflow for comparison.
+            b: Second workflow for comparison.
+            
+        Returns:
+            Weighted similarity score (0.7 steps + 0.3 transitions).
+        """
         # Align steps and get the mapping
         matches, _, _, step_score = cls._align_steps(a.steps, b.steps)
         
@@ -160,8 +284,21 @@ class MetricUtils:
     @classmethod
     def _align_steps(cls, steps_a: List[BaseModel], steps_b: List[BaseModel]) -> Tuple:
         """
-        Align steps using greedy matching based on step similarity.
-        Returns matches, unmatched_a, unmatched_b, average_score
+        Align steps using greedy matching based on similarity.
+        
+        Performs bipartite matching to find the best correspondence
+        between steps in two workflows based on step similarity scores.
+        
+        Args:
+            steps_a: Steps from first workflow.
+            steps_b: Steps from second workflow.
+            
+        Returns:
+            Tuple of (matches, unmatched_a, unmatched_b, avg_score) where:
+                - matches: List of (a_id, b_id) pairs
+                - unmatched_a: IDs in A with no match
+                - unmatched_b: IDs in B with no match
+                - avg_score: Average similarity of matched pairs
         """
         used_b = set()
         matches = []
@@ -189,6 +326,19 @@ class MetricUtils:
 
     @classmethod
     def _step_similarity(cls, a: BaseModel, b: BaseModel) -> float:
+        """
+        Compute similarity between two workflow steps.
+        
+        Handles different step types (tool calls, LLM calls, final steps)
+        with appropriate comparison logic for each.
+        
+        Args:
+            a: First step for comparison.
+            b: Second step for comparison.
+            
+        Returns:
+            Similarity score in [0, 1].
+        """
         # Check if steps are FinalSteps (check value, not just attribute existence)
         a_is_final = getattr(a, 'is_final', False) == True
         b_is_final = getattr(b, 'is_final', False) == True
@@ -231,13 +381,18 @@ class MetricUtils:
     def _compare_transitions(cls, steps_a: List[BaseModel], steps_b: List[BaseModel], 
                             id_mapping: Dict[int, int] = None) -> float:
         """
-        Compare transition edges, including conditions.
-        Uses id_mapping to compare aligned steps rather than raw IDs.
+        Compare transition structures between two workflows.
+        
+        Uses step alignment to compare edges based on mapped IDs,
+        including semantic comparison of transition conditions.
         
         Args:
-            steps_a: Steps from workflow A
-            steps_b: Steps from workflow B  
-            id_mapping: Mapping from step IDs in A to aligned step IDs in B
+            steps_a: Steps from workflow A.
+            steps_b: Steps from workflow B.
+            id_mapping: Mapping from step IDs in A to aligned step IDs in B.
+            
+        Returns:
+            Transition similarity score in [0, 1].
         """
         edges_a = cls._extract_transitions(steps_a)
         edges_b = cls._extract_transitions(steps_b)
@@ -274,28 +429,53 @@ class MetricUtils:
     @classmethod
     def _extract_transitions(cls, steps: List[BaseModel]) -> List[Tuple[str, str, str]]:
         """
-        Return list of (from_step_id, to_step_id, condition) for comparison.
+        Extract transition edges from workflow steps.
+        
+        Args:
+            steps: List of workflow steps.
+            
+        Returns:
+            List of (from_step_id, to_step_id, condition) tuples.
         """
         edges = []
         for step in steps:
-            transitions = getattr(step, "transitions", [])
-            for t in transitions or []:
-                edges.append((step.id, t.next_step, t.condition))
+            transitions = getattr(step, "transitions", []) or [getattr(step, "transition", None)]
+            for t in transitions:
+                if t:
+                    edges.append((step.id, t.next_step, t.condition))
         return edges
     
     # ============================================================================ #
-    # 2. Correctness and Resoning / Intent Resolution Scores
+    # 2. Correctness and Reasoning / Intent Resolution Scores
     # Against reference specifications
     # ============================================================================ #
 
     @classmethod
     def correctness_scores(cls, reference: str, workflows: List[BaseModel]) -> None:
         """
-        Evaluate correctness of multiple workflows against a reference specification.
+        Evaluate workflow correctness against a reference specification.
+        
+        Compares workflows against expected behavior defined in a JSON
+        reference file. Evaluates tool usage, LLM calls, step counts,
+        and branching patterns.
+        
+        Scoring Components (weighted):
+            - Tool calls: 40% - Match expected tool usage patterns
+            - LLM calls: 15% - Match expected LLM call count
+            - Step count: 25% - Total steps within expected range
+            - Transitions: 20% - Branching patterns match spec
         
         Args:
-            reference: Path to JSON file with expected behavior specifications
-            workflows: List of workflow objects to evaluate
+            reference: Path to JSON specification file.
+            workflows: List of workflows to evaluate.
+            
+        Reference Format:
+            {
+                "expected_tool_calls": {"category": {"tool": {"min": n, "max": m}}},
+                "expected_llm_calls": {"min": n, "max": m},
+                "expected_step_count_range": {"min": n, "max": m},
+                "expected_branch_transitions": {...}
+            }
         """
         with open(reference, "r") as ref:
             reference_data = json.load(ref)
@@ -399,6 +579,16 @@ class MetricUtils:
     
     @classmethod
     def _get_branching_steps(cls, workflow: BaseModel) -> List[dict]:
+        """
+        Extract LLM steps with multiple outgoing transitions (decision points).
+        
+        Args:
+            workflow: Workflow to analyze.
+            
+        Returns:
+            List of dicts with prompt, thoughts, transition info for each
+            branching step.
+        """
         return [
             {
                 "prompt": step.prompt.lower(),
@@ -415,6 +605,16 @@ class MetricUtils:
     
     @classmethod
     def _matches_branch_constraint(cls, step, constraint):
+        """
+        Check if a branching step matches a reference constraint.
+        
+        Args:
+            step: Branching step dict from _get_branching_steps.
+            constraint: Expected constraint from reference spec.
+            
+        Returns:
+            True if step matches both intent keywords and transition count.
+        """
         keywords = [kw.lower() for kw in constraint.get("keywords", [])]
         expected_transitions = constraint.get("transitions", 0)
 
@@ -435,6 +635,20 @@ class MetricUtils:
 
     @classmethod
     def _get_score(cls, count: int, min_val: int, max_val: int) -> float:
+        """
+        Score a count against expected range with distance penalty.
+        
+        Returns 1.0 if within range, otherwise penalizes based on
+        distance from nearest boundary.
+        
+        Args:
+            count: Actual count value.
+            min_val: Minimum expected value.
+            max_val: Maximum expected value.
+            
+        Returns:
+            Score in [0, 1] with 1.0 for in-range values.
+        """
         if (count >= min_val and count <= max_val):
             return 1.0
         else:
@@ -450,11 +664,17 @@ class MetricUtils:
     @classmethod
     def execution_similarity_scores(cls, execution_results: List[Dict[str, Any]]) -> None:
         """
-        Compute and print pairwise similarity matrix between execution results.
+        Compute pairwise similarity between execution result sets.
+        
+        Compares actual outputs from workflow executions using type-aware
+        comparison (dicts, lists, primitives) with step alignment to
+        handle renumbered steps across runs.
         
         Args:
-            execution_results: List of execution result dictionaries,
-                            each mapping step_id -> step_output
+            execution_results: List of execution dicts (step_id → output).
+            
+        Side Effects:
+            Logs similarity matrix and statistics to metrics logger.
         """
         n = len(execution_results)
         matrix = np.zeros((n, n))
@@ -498,6 +718,19 @@ class MetricUtils:
 
     @classmethod
     def _compare_step_outputs(cls, output_a: Any, output_b: Any) -> float:
+        """
+        Compare two step outputs with type-aware comparison.
+        
+        Handles dicts, lists, numbers, strings, and booleans with
+        appropriate comparison logic for each type.
+        
+        Args:
+            output_a: First output value.
+            output_b: Second output value.
+            
+        Returns:
+            Similarity score in [0, 1].
+        """
         if output_a is None and output_b is None:
             return 1.0
         if output_a is None or output_b is None:
@@ -530,6 +763,16 @@ class MetricUtils:
 
     @classmethod
     def _compare_dicts(cls, dict_a: Dict, dict_b: Dict) -> float:
+        """
+        Compare two dictionaries by key overlap and value similarity.
+        
+        Args:
+            dict_a: First dictionary.
+            dict_b: Second dictionary.
+            
+        Returns:
+            Weighted score: 60% value similarity + 40% key coverage.
+        """
         keys_a, keys_b = set(dict_a.keys()), set(dict_b.keys())
         all_keys = keys_a | keys_b
         if not all_keys:
@@ -545,6 +788,19 @@ class MetricUtils:
 
     @classmethod
     def _compare_list_of_dicts(cls, list_a: List[Dict], list_b: List[Dict]) -> float:
+        """
+        Compare lists of dictionaries using key-based matching.
+        
+        If dicts have 'key' field, matches by key value. Otherwise
+        falls back to positional comparison.
+        
+        Args:
+            list_a: First list of dictionaries.
+            list_b: Second list of dictionaries.
+            
+        Returns:
+            Similarity score in [0, 1].
+        """
         if not list_a and not list_b:
             return 1.0
         if not list_a or not list_b:
@@ -569,6 +825,20 @@ class MetricUtils:
     
     @classmethod
     def _compare_lists(cls, list_a: List, list_b: List) -> float:
+        """
+        Compare two lists with type-appropriate comparison.
+        
+        Lists of dicts use key-based matching. Lists of primitives
+        use multiset comparison (order-insensitive). Mixed lists
+        use positional comparison.
+        
+        Args:
+            list_a: First list.
+            list_b: Second list.
+            
+        Returns:
+            Weighted score: 70% element similarity + 30% length penalty.
+        """
         if not list_a and not list_b:
             return 1.0
         if not list_a or not list_b:
@@ -608,8 +878,19 @@ class MetricUtils:
                                     weight_output: float = 0.7, weight_coverage: float = 0.3
                                 ) -> float:
         """
-        Compare two execution results with step alignment (handles renumbered steps).
-        Returns a score in [0,1].
+        Compare two execution results with step alignment.
+        
+        Uses greedy max-weight bipartite matching to align steps
+        between executions, handling renumbered step IDs.
+        
+        Args:
+            result_a: First execution result (step_id → output).
+            result_b: Second execution result (step_id → output).
+            weight_output: Weight for output similarity (default: 0.7).
+            weight_coverage: Weight for step coverage (default: 0.3).
+            
+        Returns:
+            Weighted similarity score in [0, 1].
         """
         steps_a = list(result_a.keys())
         steps_b = list(result_b.keys())
@@ -657,10 +938,24 @@ class MetricUtils:
 
     @classmethod
     def update(cls, category: str, start_time: float, end_time: float, tokens: int) -> None:
+        """
+        Record metrics for an LLM API call.
+        
+        Updates the appropriate MetricSet based on category. Categories
+        matching MetricSchema fields (generation, execution) update those
+        directly; others are stored in the features dict.
+        
+        Args:
+            category: Metric category (e.g., "generation", "refinement").
+            start_time: Unix timestamp when call started.
+            end_time: Unix timestamp when call completed.
+            tokens: Total tokens consumed (input + output).
+        """
 
         fields = MetricSchema.model_fields
 
         if category not in fields:
+            # Store in features dict for non-standard categories
             metric_set: Dict[str, MetricSet] = getattr(cls._metrics, "features")
             if category not in metric_set:
                 metric_set[category] = MetricSet()
@@ -674,11 +969,22 @@ class MetricUtils:
     
     @classmethod
     def finish(cls) -> None:
+        """Mark workflow execution as complete."""
         cls._has_finished = True
 
     @classmethod
     def display(cls) -> Dict[str, str]:
+        """
+        Log and return efficiency metrics summary.
+        
+        Displays human-readable metrics for each category and returns
+        formatted strings for machine-parseable output.
+        
+        Returns:
+            Dict mapping category names to formatted metric strings.
+        """
         def print_metric_set(title: str, metric_set: MetricSet, indent: int = 0):
+            """Helper to log a single metric set."""
             prefix = " " * indent
             cls._logger.log(logging.INFO, f"{prefix}{title}:")
             cls._logger.log(logging.INFO, f"{prefix}  time_taken       : {metric_set.time_taken:.4f}s")
@@ -686,6 +992,7 @@ class MetricUtils:
             cls._logger.log(logging.INFO, f"{prefix}  total_tokens     : {metric_set.total_tokens}")
         
         def get_formatted_metric_set(metric_set: MetricSet) -> str:
+            """Helper to format metric set as CSV-like string."""
             line = f"{metric_set.time_taken:.2f}, {metric_set.number_of_calls}, {metric_set.total_tokens}"
             return line
 
@@ -712,7 +1019,13 @@ class MetricUtils:
         return formatted_lines
 
     @classmethod
-    def display_formatted_metrics(cls, metrics: List[Dict[str, str]]) -> None:    
+    def display_formatted_metrics(cls, metrics: List[Dict[str, str]]) -> None:
+        """
+        Log formatted metrics from multiple runs for easy comparison.
+        
+        Args:
+            metrics: List of formatted metric dicts from display() calls.
+        """
         
         headers = set()
         for group in metrics:
@@ -730,7 +1043,12 @@ class MetricUtils:
             
     @classmethod
     def reset(cls) -> None:
-        """Reset metrics for a new run."""
+        """
+        Reset all metrics for a new run.
+        
+        Clears metrics, embedding cache, and similarity cache.
+        Should be called before starting a new evaluation session.
+        """
         cls._metrics = MetricSchema()
         cls._embeddings.clear()
         cls._similarities.clear()
@@ -743,6 +1061,27 @@ class MetricUtils:
 
     @classmethod
     def reasoning_coherence_scores(cls, workflows: List[BaseModel]) -> None:
+        """
+        Evaluate reasoning quality and logical consistency of workflows.
+        
+        Analyzes multiple dimensions of reasoning quality:
+            - Thought continuity: How well consecutive thoughts connect
+            - Transition validity: Whether conditions relate to step content
+            - Structural coherence: No cycles, unreachable steps, or dead ends
+            - Action-thought alignment: Actions match stated intentions
+        
+        Scoring Weights:
+            - Thought continuity: 30%
+            - Transition validity: 25%
+            - Structural coherence: 25%
+            - Action alignment: 20%
+        
+        Args:
+            workflows: List of workflows to evaluate.
+            
+        Side Effects:
+            Logs coherence scores and breakdown to metrics logger.
+        """
 
         results = []
         cls._logger.log(logging.INFO, "Reasoning Coherence Scores:")
@@ -794,7 +1133,18 @@ class MetricUtils:
 
     @classmethod
     def _analyze_thought_continuity(cls, steps: List[BaseModel]) -> float:
-        """Check if consecutive thoughts logically follow each other."""
+        """
+        Analyze logical flow between consecutive step thoughts.
+        
+        Uses semantic similarity between adjacent thoughts with
+        bonus scoring for progression keywords (then, next, etc.).
+        
+        Args:
+            steps: Non-final workflow steps.
+            
+        Returns:
+            Continuity score in [0, 1].
+        """
         if len(steps) < 2:
             return 1.0
         
@@ -828,11 +1178,22 @@ class MetricUtils:
 
     @classmethod
     def _analyze_transition_validity(cls, steps: List[BaseModel]) -> float:
-        """Check if transitions are justified by step capabilities."""
+        """
+        Evaluate whether transition conditions are justified by step content.
+        
+        For LLM steps, checks if conditions relate to the prompt.
+        For tool steps, checks if conditions reference tool outputs.
+        
+        Args:
+            steps: Non-final workflow steps.
+            
+        Returns:
+            Transition validity score in [0, 1].
+        """
         transition_scores = []
         
         for step in steps:
-            transitions = getattr(step, 'transitions', []) or []
+            transitions = getattr(step, 'transitions', []) or [getattr(step, 'transition', None)]
             if not transitions:
                 continue
             
@@ -840,33 +1201,48 @@ class MetricUtils:
             step_action = getattr(step, 'action', '') or ''
             
             for t in transitions:
-                condition = getattr(t, 'condition', '') or ''
-                
-                # Check if condition relates to step content
-                condition_relevance = 0.0
-                
-                # For LLM steps, conditions should relate to the prompt/decision
-                if step_action == 'call_llm':
-                    prompt = getattr(step, 'prompt', '') or ''
-                    condition_relevance = cls._string_embedding_score(condition, prompt)
-                
-                # For tool steps, conditions should relate to tool output
-                elif step_action == 'call_tool':
-                    tool_name = getattr(step, 'tool_name', '') or ''
-                    tool_output_keys = [out.get("key") for out in ToolRegistry.get(tool_name).outputs]
-                    # Basic check: condition mentions tool-related concepts
-                    if tool_name.lower() in condition.lower() or any(k and k.lower() in condition.lower() for k in tool_output_keys):
-                        condition_relevance = 0.7
-                    else:
-                        condition_relevance = cls._string_embedding_score(condition, step_thought)
-                
-                transition_scores.append(max(0.5, condition_relevance))
+                if t:
+                    condition = getattr(t, 'condition', '') or ''
+                    
+                    # Check if condition relates to step content
+                    condition_relevance = 0.0
+                    
+                    # For LLM steps, conditions should relate to the prompt/decision
+                    if step_action == 'call_llm':
+                        prompt = getattr(step, 'prompt', '') or ''
+                        condition_relevance = cls._string_embedding_score(condition, prompt)
+                    
+                    # For tool steps, conditions should relate to tool output
+                    elif step_action == 'call_tool':
+                        tool_name = getattr(step, 'tool_name', '') or ''
+                        tool_output_keys = [out.get("key") for out in ToolRegistry.get(tool_name).outputs]
+                        # Basic check: condition mentions tool-related concepts
+                        if tool_name.lower() in condition.lower() or any(k and k.lower() in condition.lower() for k in tool_output_keys):
+                            condition_relevance = 0.7
+                        else:
+                            condition_relevance = cls._string_embedding_score(condition, step_thought)
+                    
+                    transition_scores.append(max(0.5, condition_relevance))
         
         return float(np.mean(transition_scores)) if transition_scores else 1.0
 
     @classmethod
     def _analyze_structural_coherence(cls, steps: List[BaseModel]) -> float:
-        """Detect structural issues: cycles, unreachable steps, dead ends."""
+        """
+        Detect structural issues in workflow graph.
+        
+        Checks for:
+            - Invalid transition targets (referencing non-existent steps)
+            - Unreachable steps (not reachable from step 1)
+            - Dead ends (non-final steps with no outgoing transitions)
+            - No path to final step
+        
+        Args:
+            steps: All workflow steps including final.
+            
+        Returns:
+            Structural coherence score in [0, 1].
+        """
         if not steps:
             return 0.0
         
@@ -876,11 +1252,12 @@ class MetricUtils:
         # Build adjacency from transitions
         graph = {s.id: [] for s in steps}
         for step in steps:
-            transitions = getattr(step, 'transitions', []) or []
+            transitions = getattr(step, 'transitions', []) or [getattr(step, 'transition', None)]
             for t in transitions:
-                next_id = getattr(t, 'next_step', None)
-                if next_id is not None:
-                    graph[step.id].append(next_id)
+                if t:
+                    next_id = getattr(t, 'next_step', None)
+                    if next_id is not None:
+                        graph[step.id].append(next_id)
         
         issues = 0
         total_checks = 0
@@ -905,7 +1282,7 @@ class MetricUtils:
         for step in steps:
             if getattr(step, 'is_final', False):
                 continue
-            transitions = getattr(step, 'transitions', []) or []
+            transitions = getattr(step, 'transitions', []) or [getattr(step, 'transition', None)]
             total_checks += 1
             if not transitions:
                 issues += 0.5  # Dead end is a partial issue
@@ -927,7 +1304,16 @@ class MetricUtils:
 
     @classmethod
     def _find_reachable(cls, graph: Dict[int, List[int]], start: int) -> set:
-        """BFS to find all reachable nodes from start."""
+        """
+        Find all nodes reachable from start using BFS.
+        
+        Args:
+            graph: Adjacency list (node → list of neighbors).
+            start: Starting node ID.
+            
+        Returns:
+            Set of reachable node IDs.
+        """
         visited = set()
         queue = [start]
         while queue:
@@ -942,7 +1328,18 @@ class MetricUtils:
 
     @classmethod
     def _analyze_action_thought_alignment(cls, steps: List[BaseModel]) -> float:
-        """Check if the action matches what the thought describes."""
+        """
+        Check if actions match their stated intentions in thoughts.
+        
+        For tool steps, checks if thought mentions tool name or purpose.
+        For LLM steps, checks for decision/reasoning keywords.
+        
+        Args:
+            steps: Non-final workflow steps.
+            
+        Returns:
+            Alignment score in [0, 1].
+        """
         alignment_scores = []
         
         for step in steps:
@@ -985,6 +1382,22 @@ class MetricUtils:
 
     @classmethod
     def intent_resolution_scores(cls, workflows: List[BaseModel]) -> None:
+        """
+        Evaluate how well workflows capture user intent.
+        
+        Measures both explicit alignment with stated goals and
+        detection of over-interpretation (adding unrequested features).
+        
+        Scoring Weights:
+            - Explicit alignment: 75%
+            - Precision (1 - over-interpretation): 25%
+        
+        Args:
+            workflows: List of workflows to evaluate.
+            
+        Side Effects:
+            Logs intent resolution scores to metrics logger.
+        """
 
         results = []
         cls._logger.log(logging.INFO, "Intent Resolution Scores:")
@@ -1022,7 +1435,18 @@ class MetricUtils:
 
     @classmethod
     def _workflow_to_text(cls, workflow: BaseModel) -> str:
-        """Convert workflow to text representation for semantic comparison."""
+        """
+        Convert workflow to text representation for semantic comparison.
+        
+        Concatenates title, description, objective, step thoughts,
+        tool names, and prompts into a single searchable string.
+        
+        Args:
+            workflow: Workflow to convert.
+            
+        Returns:
+            Space-separated text representation.
+        """
         parts = [
             workflow.title if hasattr(workflow, 'title') else '',
             workflow.description if hasattr(workflow, 'description') else '',
@@ -1043,8 +1467,18 @@ class MetricUtils:
     @classmethod
     def _analyze_over_interpretation(cls, prompt: str, workflow: BaseModel) -> float:
         """
-        Detect if workflow adds significant content not implied by prompt.
-        Returns penalty score (0 = no over-interpretation, 1 = severe).
+        Detect if workflow adds content not implied by the prompt.
+        
+        Measures divergence between prompt and workflow content,
+        counting steps that appear unrelated to the original request.
+        
+        Args:
+            prompt: Original user prompt.
+            workflow: Generated workflow.
+            
+        Returns:
+            Over-interpretation penalty in [0, 1] where 0 = no excess,
+            1 = severe over-interpretation.
         """
         workflow_text = cls._workflow_to_text(workflow)
         

@@ -1,28 +1,111 @@
+"""
+Tool Definition Module
+======================
+
+This module defines the core Tool class and ToolType enumeration used
+throughout the workflow system for representing executable tools.
+
+Main Responsibilities:
+    - Define Tool data structure with metadata and implementation
+    - Extract input/output schemas from Python type hints
+    - Format tool information for LLM prompts
+
+Key Dependencies:
+    - inspect: For function signature analysis
+    - typing: For type hint processing
+
+Design Patterns:
+    - Property pattern for lazy evaluation of inputs/outputs
+    - Type hint introspection for schema extraction
+"""
+
 import inspect
 
 from enum import Enum
 from typing import get_type_hints, get_args, get_origin, Any, Union, List, Dict, Tuple
 
+
 class ToolType(Enum):
+    """
+    Enumeration of tool types in the workflow system.
+    
+    Attributes:
+        ATOMIC: Single-purpose tool performing one operation.
+        MACRO: Composite tool combining multiple atomic operations.
+    """
     ATOMIC = "atomic"
     MACRO = "macro"
 
+
 class Tool:
+    """
+    Represents an executable tool in the workflow system.
+    
+    Encapsulates tool metadata (name, description, category) along with
+    its implementation function. Provides automatic schema extraction
+    from Python type hints for inputs and outputs.
+    
+    Attributes:
+        name: Unique identifier for the tool.
+        description: Human-readable description of tool functionality.
+        category: Classification category (e.g., "weather", "finance").
+        type: ToolType indicating atomic or macro tool.
+        function: The actual implementation callable.
+    
+    Example:
+        >>> def get_weather(city: str) -> WeatherResult:
+        ...     return {"temperature": 20, "conditions": "sunny"}
+        >>> tool = Tool("get_weather", "Get weather data", "weather",
+        ...             ToolType.ATOMIC, get_weather)
+        >>> result = tool.run(city="London")
+    """
+    
     def __init__(self, name: str, description: str, category: str, type: ToolType, implementation: callable):
+        """
+        Initialize a Tool instance.
+        
+        Args:
+            name: Unique identifier for the tool.
+            description: Human-readable description.
+            category: Classification category for grouping.
+            type: ToolType (ATOMIC or MACRO).
+            implementation: The callable function implementing the tool.
+        """
         self.name = name
         self.description = description
         self.category = category
         self.type = type
         self.function = implementation
-        self._inputs = None
-        self._outputs = None
+        self._inputs = None  # Lazy-loaded input schema
+        self._outputs = None  # Lazy-loaded output schema
 
     def run(self, **kwargs):
+        """
+        Execute the tool with provided arguments.
+        
+        Args:
+            **kwargs: Keyword arguments passed to the tool function.
+            
+        Returns:
+            The result of the tool function execution.
+        """
         return self.function(**kwargs)
     
     @property
     def inputs(self) -> list[dict]:
-        """Extract parameter information from the function signature."""
+        """
+        Extract parameter information from the function signature.
+        
+        Analyzes the tool function's signature and type hints to build
+        a schema describing required and optional parameters.
+        
+        Returns:
+            List of parameter dictionaries with keys:
+            - name: Parameter name
+            - required: Whether parameter is required
+            - default: Default value if optional
+            - type: Formatted type string
+        """
         if self._inputs is not None:
             return self._inputs
         
@@ -45,14 +128,25 @@ class Tool:
 
     @property
     def outputs(self) -> list[dict]:
-        """Extract output information from the function return type."""
+        """
+        Extract output information from the function return type.
+        
+        Analyzes the tool function's return type hint, expecting a
+        TypedDict for structured output schema extraction.
+        
+        Returns:
+            List of output field dictionaries with keys:
+            - key: Field name
+            - type: Formatted type string
+            Returns empty list if return type is not a TypedDict.
+        """
         if self._outputs is not None:
             return self._outputs
         
         hints = get_type_hints(self.function)
         rt = hints.get("return", dict)
 
-        # Not a TypedDict → no schema
+        # Not a TypedDict → no schema available
         if not (isinstance(rt, type) and hasattr(rt, '__annotations__') and hasattr(rt, '__total__')):
             self._outputs = []
             return self._outputs
@@ -69,37 +163,48 @@ class Tool:
         return results
     
     def __format_type(self, type_hint) -> str:
-        """Format type hints into readable strings."""
+        """
+        Format type hints into human-readable strings.
+        
+        Recursively processes complex type hints (List, Dict, Union, etc.)
+        into readable string representations for documentation.
+        
+        Args:
+            type_hint: A Python type hint to format.
+            
+        Returns:
+            Formatted string representation of the type.
+        """
         if type_hint is inspect.Parameter.empty or type_hint is Any:
             return "any"
         
         origin = get_origin(type_hint)
         args = get_args(type_hint)
 
-        # No origin → normal type
+        # No origin → simple type
         if origin is None:
             return type_hint.__name__ if hasattr(type_hint, "__name__") else str(type_hint)
 
-        # List
+        # List[T] handling
         if origin in (list, List):
             if args:
                 return f"list[{self.__format_type(args[0])}]"
             return "list"
 
-        # Dict
+        # Dict[K, V] handling
         elif origin in (dict, Dict):
             if args:
                 return f"dict[{self.__format_type(args[0])}, {self.__format_type(args[1])}]"
             return "dict"
 
-        # Tuple
+        # Tuple[T, ...] handling
         elif origin in (tuple, Tuple):
             if args:
                 inner = ", ".join(self.__format_type(a) for a in args)
                 return f"tuple[{inner}]"
             return "tuple"
 
-        # Union / Optional
+        # Union / Optional handling
         elif origin is Union:
             # Optional[T] is Union[T, NoneType]
             if len(args) == 2 and type(None) in args:
@@ -109,12 +214,19 @@ class Tool:
                 inner = ", ".join(self.__format_type(a) for a in args)
                 return f"Union[{inner}]"
 
-        # fallback
+        # Fallback for unrecognized types
         return str(type_hint)
 
     def to_prompt_format(self) -> str:
-        """Format tool information for LLM prompt in a clean, readable way."""
+        """
+        Format tool information for inclusion in LLM prompts.
         
+        Generates a structured, human-readable representation of the
+        tool's metadata, inputs, and outputs suitable for LLM context.
+        
+        Returns:
+            Formatted multi-line string describing the tool.
+        """
         # Build parameter block
         if self.inputs:
             input_lines = []
@@ -125,7 +237,7 @@ class Tool:
         else:
             inputs_str = "None"
         
-        # -------- Outputs from TypedDict -------
+        # Build output block from TypedDict schema
         if self.outputs:
             output_lines = []
             for output in self.outputs:
@@ -134,7 +246,7 @@ class Tool:
         else:
             output_str = "(unstructured output)"
         
-        # Final formatted block
+        # Assemble final formatted block
         return (
             f"[Tool]\n"
             f" |- Name: {self.name}\n"

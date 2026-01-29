@@ -1,3 +1,40 @@
+"""
+AI Workflows - Main Entry Point
+================================
+
+This module serves as the command-line interface for the AI Workflows framework.
+It provides functionality for generating workflows from natural language prompts
+and executing previously generated workflows.
+
+Key Capabilities:
+    - Workflow generation using configurable strategies (monolithic, incremental,
+      bottom-up)
+    - Workflow execution with tool invocation
+    - Multi-run experiments with random prompt selection
+    - Feature pipeline configuration (clarification, refinement, validation)
+    - Flexible agent configuration per role
+
+Supported LLM Providers:
+    - Cerebras: gpt-oss, llama-3.3
+    - Google: gemini-2.5-flash, gemini-2.5-flash-lite
+
+Usage Examples:
+    Generate a workflow:
+        python main.py --generate --prompt weather_activity_plan
+    
+    Generate and execute:
+        python main.py --generate --execute --strategy bottomup
+    
+    Execute existing workflow:
+        python main.py --execute --workflow-path data/workflows/workflow_1.json
+    
+    Multi-run experiment:
+        python main.py --generate --runs 10 --random-it
+
+See Also:
+    evaluate.py for workflow evaluation and metric computation.
+"""
+
 import argparse
 import random
 
@@ -14,11 +51,12 @@ from utils.prompt import PromptUtils
 from utils.metric import MetricUtils
 from utils.workflow import WorkflowUtils
 
+
 # ---------------------------------------------------------------------
 # Factories
 # ---------------------------------------------------------------------
 
-# Agent/model mapping
+# Agent/model mapping: CLI spec → (AgentClass, ModelEnum)
 AGENT_MODELS = {
     # Cerebras models
     "cerebras:gpt-oss": (CerebrasAgent, CerebrasModel.GPT_OSS),
@@ -30,8 +68,23 @@ AGENT_MODELS = {
 
 AGENT_CHOICES = list(AGENT_MODELS.keys())
 
+
 def _agents_factory(args):
-    """Build agents dict from CLI args, using defaults for unspecified agents."""
+    """
+    Build agents dictionary from CLI arguments.
+    
+    Creates agent instances for specified roles. Unspecified roles
+    will use the default agent configured in AgentSchema.
+    
+    Args:
+        args: Parsed argparse namespace with agent specifications.
+        
+    Returns:
+        Dict mapping role names to AgentBase instances.
+        
+    Raises:
+        ValueError: If unknown agent specification provided.
+    """
     agents = {}
     
     # Map CLI arg names to agent schema keys
@@ -53,7 +106,20 @@ def _agents_factory(args):
     
     return agents
 
+
 def _strategy_factory(name: str):
+    """
+    Create strategy instance from name.
+    
+    Args:
+        name: Strategy name (monolithic, incremental, bottomup).
+        
+    Returns:
+        Configured strategy instance.
+        
+    Raises:
+        ValueError: If unknown strategy name.
+    """
     mapping = {
         "monolithic": MonolithicStrategy,
         "incremental": IncrementalStrategy,
@@ -64,7 +130,20 @@ def _strategy_factory(name: str):
         raise ValueError(f"Unknown strategy '{name}'. Valid: {', '.join(mapping.keys())}")
     return cls()
 
+
 def _workflow_model_factory(name: str):
+    """
+    Get workflow model class from name.
+    
+    Args:
+        name: Workflow type (linear, structured).
+        
+    Returns:
+        Workflow model class (not instance).
+        
+    Raises:
+        ValueError: If unknown workflow type.
+    """
     mapping = {
         "linear": LinearWorkflow,
         "structured": StructuredWorkflow,
@@ -74,7 +153,20 @@ def _workflow_model_factory(name: str):
         raise ValueError(f"Unknown workflow model '{name}'. Valid: {', '.join(mapping.keys())}")
     return cls
 
+
 def _tools_factory(args):
+    """
+    Build list of available tools based on CLI filters.
+    
+    Supports filtering by tool type (atomic/macro) and specific
+    tool selection by name.
+    
+    Args:
+        args: Parsed argparse namespace with tool options.
+        
+    Returns:
+        List of Tool instances available for workflow execution.
+    """
     if args.no_tools:
         return []
     
@@ -88,13 +180,24 @@ def _tools_factory(args):
     if not args.select_tools:
         return all_tools
     
+    # Filter to selected tools only
     selected_tools = []
     for tool_name in args.select_tools:
         selected_tools.append(tool for tool in all_tools if tool.name == tool_name)
 
     return selected_tools
 
+
 def _features_factory(args):
+    """
+    Build list of enabled features from CLI flags.
+    
+    Args:
+        args: Parsed argparse namespace with feature flags.
+        
+    Returns:
+        List of FeatureBase instances to include in pipeline.
+    """
     selected_features = []
     if args.chat:
         selected_features.append(ChatClarificationFeature())
@@ -104,11 +207,19 @@ def _features_factory(args):
         selected_features.append(ValidationRefinementFeature())
     return selected_features
 
+
 # ---------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------
 
 def main():
+    """
+    Main entry point for CLI workflow operations.
+    
+    Parses command-line arguments and orchestrates workflow generation
+    and/or execution based on user options. Supports multi-run experiments
+    with metric tracking across runs.
+    """
     # Argument parsing
     argparser = argparse.ArgumentParser(description="AI Workflow Orchestrator")
 
