@@ -71,7 +71,7 @@ class WorkflowUtils:
         return [os.path.join(WORKFLOWS, f) for f in os.listdir(WORKFLOWS) if f.endswith(".json")]
 
     @classmethod
-    def save_visualization(cls, workflow: BaseModel) -> str:
+    def save_visualization(cls, workflow: BaseModel, user_prompt: str) -> str:
         """Create a visual representation of the workflow using pyvis."""
         
         wf_dict = workflow.model_dump()
@@ -190,6 +190,12 @@ class WorkflowUtils:
 
         # Generate HTML file and save
         html_str = net.generate_html()
+        prompt_block = f"""<strong>User Prompt:</strong> {html.escape(user_prompt)}"""
+        html_str = html_str.replace(
+            '<div id="mynetwork" class="card-body"></div>',
+            prompt_block + '\n<div id="mynetwork" class="card-body"></div>',
+            1
+        )
         file_path = os.path.join(VISUALIZATIONS, filename)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(html_str)

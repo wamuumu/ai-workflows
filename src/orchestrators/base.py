@@ -120,7 +120,7 @@ class ConfigurableOrchestrator:
 
         try:
             context.workflow_path = WorkflowUtils.save_workflow(context.workflow)
-            context.workflow_visualization_path = WorkflowUtils.save_visualization(context.workflow)
+            context.workflow_visualization_path = WorkflowUtils.save_visualization(context.workflow, user_prompt)
             WorkflowUtils.increment_run_id()
             self.logger.log(logging.INFO, f"Workflow saved successfully.")
         except Exception as e:
