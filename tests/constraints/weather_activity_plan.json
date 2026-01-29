@@ -1,0 +1,26 @@
+{
+  "expected_tool_calls": {
+    "weather": {
+      "current_weather": {"min": 1, "max": 1},
+      "plan_trip": {"min": 1, "max": 1}
+    },
+    "activities": {
+      "plan_trip": {"min": 1, "max": 1},
+      "get_indoor_activities": {"min": 1, "max": 1},
+      "get_outdoor_activities": {"min": 1, "max": 1}
+    },
+    "write": {
+      "write_file": {"min": 1, "max": 2},
+      "send_email": {"min": 1, "max": 2},
+      "write": {"min": 2, "max": 4}
+    }
+  },
+  "expected_llm_calls": {"min": 2, "max": 4},
+  "expected_branch_transitions": {
+    "weather_activities": {
+        "keywords": ["rain", "rainy", "forecast", "forecasts", "determine", "respond", "decide", "indoor", "outdoor", "activities"],
+        "transitions": 2
+    }
+  },
+  "expected_step_count_range": {"min": 8, "max": 12}
+}

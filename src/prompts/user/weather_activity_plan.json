@@ -1,0 +1,12 @@
+{
+  "1": "Check the weather in London for the next 3 days. If any day has rain, find indoor activities and save them to rainy_activities.txt. Otherwise, search for outdoor activities and save to other_activities.txt. Also send me an email summarizing the plan.",
+  "2": "Please provide a 3-day weather forecast for London. If it rains on any of these days, gather indoor activities and store them in rainy_activities.txt. If the weather is clear, look for outdoor activities and save them to other_activities.txt. Then email me a summary of everything.",
+  "3": "Get London’s weather for the next three days. In case of rain, pick indoor things to do and write them into rainy_activities.txt; if no rain, pick outdoor activities and save them to other_activities.txt. Afterwards, send a summary email.",
+  "4": "Can you check the weather in London for the next 3 days? If rain is forecasted, find indoor activities and save them to a file called rainy_activities.txt. If not, find outdoor activities and save to other_activities.txt. Also, send me an email with the activity plan.",
+  "5": "Forecast the weather in London over the next 3 days. Should any day include rain, collect indoor activity ideas and save to rainy_activities.txt. Otherwise, collect outdoor activities into other_activities.txt. Please summarize all this in an email.",
+  "6": "I need a 3-day weather update for London. When it rains, fetch indoor activities and save to rainy_activities.txt; when it’s sunny, fetch outdoor activities to other_activities.txt. Send me an email summarizing the plan.",
+  "7": "Check London’s forecast for the next three days. Depending on rain, either save indoor activities to rainy_activities.txt or outdoor activities to other_activities.txt. Email me the full plan afterward.",
+  "8": "Please find out the weather in London for the next 3 days. For rainy days, gather indoor activities and save to rainy_activities.txt. For dry days, gather outdoor activities and save to other_activities.txt. Finally, send me a summary email.",
+  "9": "Look up the next three days’ weather in London. If it rains any day, find and store indoor activities in rainy_activities.txt. Otherwise, store outdoor activities in other_activities.txt. Send me a summary email with all the details.",
+  "10": "Obtain London’s 3-day weather forecast. Based on rain predictions, choose indoor or outdoor activities accordingly and save to the appropriate file (rainy_activities.txt or other_activities.txt). Then send an email summarizing the planned activities."
+}

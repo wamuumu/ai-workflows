@@ -1,0 +1,12 @@
+{
+    "1": "Search for news about Tesla stock. If the stock went up, calculate how much $10,000 invested last month would be worth now and email me the result. If it went down, search for analyst opinions and summarize them for me instead.",
+    "2": "Find recent Tesla stock news. When the price is higher than last month, compute the value of a $10k investment from then and email me; if it’s lower, gather analyst takes and summarize",
+    "3": "Check Tesla stock movement via news. If it increased since last month, estimate current value of $10,000 invested then and email me. If it decreased, pull analyst opinions and summarize",
+    "4": "Look up Tesla stock coverage. When the stock is up month-over-month, calculate today’s worth of a $10,000 investment made last month and send by email. If it’s down, compile analyst perspectives instead",
+    "5": "Search news on Tesla. If share price rose vs last month, figure out what $10k invested then is worth now and email it; if it fell, summarize analyst commentary",
+    "6": "Review Tesla stock updates. Should the price be higher than last month, compute returns on a $10,000 position from that time and email me. If lower, find analyst views and summarize",
+    "7": "Gather the latest Tesla stock news. If it’s up compared to last month, calculate current value of a $10k investment from then and email me; if down, summarize analysts’ opinions",
+    "8": "Fetch Tesla stock headlines. When the stock has risen since last month, estimate what $10,000 invested then is worth and email me; when it’s fallen, provide a summary of analyst insights",
+    "9": "Check how Tesla stock has moved based on recent news. If higher than last month, compute today’s value of a $10k stake bought then and email. If lower, summarize analysts’ takes",
+    "10": "Research Tesla stock news. If the price went up month-over-month, calculate returns on a $10,000 investment from last month and email me; otherwise, collect and summarize analyst opinions"
+}

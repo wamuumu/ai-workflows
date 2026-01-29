@@ -1,0 +1,16 @@
+# Environments
+venv/
+.venv/
+.env
+
+# Python cache
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Data files
+data/
+logs/
+metrics/
+documentation
+/models/
