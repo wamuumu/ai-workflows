@@ -288,7 +288,11 @@ class WorkflowUtils:
 
         # Generate HTML and inject user prompt header
         html_str = net.generate_html()
-        prompt_block = f"""<strong>User Prompt:</strong> {html.escape(user_prompt)}"""
+        prompt_block = f"""
+            <div style="position: absolute; z-index: 1; margin: 10;">
+                <strong>User Prompt:</strong> {html.escape(user_prompt)}
+            </div>
+        """
         html_str = html_str.replace(
             '<div id="mynetwork" class="card-body"></div>',
             prompt_block + '\n<div id="mynetwork" class="card-body"></div>',
